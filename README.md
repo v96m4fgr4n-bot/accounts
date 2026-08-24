@@ -1,38 +1,73 @@
-# Client Accounting System — Starter Scaffold
+# Client Accounting System
 
-This folder is a starting point for a new repo, meant to be handed to Claude Code
-to bootstrap the build.
+Multi-tenant accounting/formalization system for cash-heavy, mostly-informal
+Zimbabwean SME clients. See `CLAUDE.md` for non-negotiables and build order,
+and `docs/erp-blueprint.md` / `docs/client-playbook.md` for the domain spec.
 
-## What's in here
+## Stack
 
-- `CLAUDE.md` — project context Claude Code reads automatically. Non-negotiables,
-  architecture, build order.
-- `docs/erp-blueprint.md` — the full functional spec (accounting logic, journal
-  patterns, tax/compliance rules).
-- `docs/client-playbook.md` — the plain-language client-facing process; use this
-  for UI copy and tone in the client app specifically.
+- Next.js (App Router) — one repo, two route groups: `/app/client` and
+  `/app/console`
+- Postgres via Supabase — auth, Row-Level Security for tenant isolation
+- Vitest for tests
 
-## Getting started with Claude Code
+## Phase 0 — tenant/auth scaffolding + RLS
 
-1. Create a new repo and copy this folder's contents into it (`CLAUDE.md` at the
-   repo root, `docs/` as a subfolder).
-2. Open the repo in Claude Code.
-3. Start with Phase 0 — ask it to scaffold a Next.js app with Supabase auth and
-   a `tenants` table with Row-Level Security, before anything else. Confirm RLS
-   is actually enforced (write a quick test that tries to read across tenants)
-   before moving on.
-4. Work phase by phase (see `CLAUDE.md` → Build order). Reference Blueprint
-   section numbers when describing what you want built, e.g.:
-   > "Build the Daily Cash Control flow per erp-blueprint.md §2 — opening float,
-   > sale logging, end-of-day count and variance."
-5. For the ledger engine (Phase 3), use plan mode first. This is the one place
-   worth slowing down — review the proposed journal-posting design against the
-   patterns in the Blueprint before code gets written.
-6. Keep both docs in `docs/` updated as living specs. If a build decision reveals
-   a gap (a transaction type the Blueprint doesn't cover, a control that doesn't
-   fit a specific client), update the doc, don't just patch around it in code.
+What's here:
 
-## Phased build order
+- `supabase/migrations/0001_tenants_and_memberships.sql` — `tenants`,
+  `tenant_memberships` (roles: `client_user`, `consultant`), and the
+  `is_tenant_member()` helper other tables' policies will call.
+- `supabase/migrations/0002_rls_policies.sql` — RLS policies. `tenants` and
+  `tenant_memberships` are `force row level security`, select-only for
+  authenticated users, scoped to the caller's own memberships. Every
+  tenant-scoped table added in later phases must follow this pattern —
+  RLS is the actual security boundary (CLAUDE.md non-negotiable #2), not
+  the `select('...')` filters in `app/`.
+- `lib/supabase/{client,server}.ts`, `middleware.ts` — Supabase auth
+  wiring (browser client, server client, session-refresh middleware).
+- `app/login`, `app/auth/callback` — magic-link sign-in.
+- `app/page.tsx` — routes a signed-in user to `/client` or `/console`
+  based on their `tenant_memberships` role.
+- `app/client`, `app/console` — placeholder pages that list the tenants
+  RLS allows the current user to see.
+- `tests/rls-tenant-isolation.test.ts` — the RLS proof: creates two
+  tenants and two users via the service-role key, signs in as each user
+  with the anon key, and asserts a user can only read their own tenant
+  and membership rows (including a direct id lookup for the other
+  tenant, and a blocked attempt to insert their way into it).
+
+### Setup
+
+```bash
+npm install
+cp .env.example .env.local   # fill in Supabase project URL + anon key
+```
+
+Apply the migrations to your Supabase project (either via the Supabase CLI
+`supabase db push`, or paste the two files into the SQL editor in order).
+
+```bash
+npm run dev
+```
+
+### Verifying RLS is actually enforced
+
+This is the step CLAUDE.md calls out as non-negotiable — don't skip it.
+
+```bash
+SUPABASE_URL=https://<project>.supabase.co \
+SUPABASE_ANON_KEY=<anon key> \
+SUPABASE_SERVICE_ROLE_KEY=<service role key> \
+npm test
+```
+
+Without those three env vars the RLS test suite reports as **skipped**,
+not passing — a skip here should never be read as confirmation. Run it
+against a real (local `supabase start` or disposable test) project before
+trusting isolation on this phase.
+
+## Build order
 
 | Phase | Scope | Blueprint sections |
 |---|---|---|
@@ -45,6 +80,6 @@ to bootstrap the build.
 | 6 | Assets, casual labour, bank reconciliation | §9.1, §10, §11 |
 | 7 | Console back-office — cross-client views, approvals | §16 |
 
-Phase 1 is deliberately the fastest path to something real clients can use —
-it's usable on its own even before the full ledger engine exists behind it
-(store raw logged transactions, backfill journals in Phase 2).
+Work phase by phase (see `CLAUDE.md` → Build order for the ledger-engine
+plan-mode note on Phase 2/3). Reference Blueprint section numbers in
+commits, PRs, and code comments.
