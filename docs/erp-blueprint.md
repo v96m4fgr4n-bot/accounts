@@ -212,6 +212,12 @@ Keep categories short and meaningful: Rent, Utilities, Transport/fuel, Airtime/d
 > payments are captured as the `casual_labour` Expense category (§8) and
 > post the ordinary expense journal.
 
+> **§9.1 delivered in Phase 6:** a named `casual_workers` master and
+> `casual_labour_payments` log replace the generic expense-category
+> placeholder above — but the GL treatment is unchanged, still posting to
+> the same `expense_casual_labour` account. A better-structured capture
+> of the same economic event, not a new one.
+
 ### 9.1 Casual/Informal Labour Log
 Record who was paid, for what, how much, when — the starting point even before formal payroll exists.
 
@@ -224,13 +230,39 @@ CR  Cash/Bank                              net pay
 CR  Statutory Payable(s)                   once formally registered as an employer
 ```
 
+> **Still deferred:** §9.2 formal payroll needs statutory-deduction rates
+> that are themselves configurable tax figures (non-negotiable #5, same
+> shape as `tax_settings` from Phase 5), plus an employee master, a pay-
+> run capture flow, and payslip generation — a build of comparable size
+> to Phase 5 in its own right, not something to fold into "assets and
+> casual labour." Left for a future phase.
+
 ## 10. Cash and Bank Function
+
+> **Delivered in Phase 6.** Each bank account gets its own dedicated GL
+> account (not a shared "Bank" account per currency the way Cash is), so
+> multiple accounts can each be reconciled against their own statement
+> independently. No opening-balance journal posts when a bank account is
+> added — same reasoning as every other opening-balance deferral since
+> Phase 2 (still no owner's-equity/capital account to balance it
+> against); `opening_balance` is recorded as reference data only. Not
+> built: "authorized users" (§10.1's field list) — access is already
+> whoever holds a `client_user`/`consultant` membership on the tenant,
+> and a narrower per-bank-account authorization concept wasn't
+> obviously useful enough to add speculatively.
 
 ### 10.1 Bank Account Master
 Not assumed from day one — many clients start entirely in cash. Opening a bank account is itself a formalization milestone (usually a VAT-registration prerequisite). Record: bank name, account number, currency, opening balance, authorized users.
 
 ### 10.2 Bank Reconciliations
 Once banking is part of the routine, match banked cash against the bank statement each period.
+
+> **Implementation note:** a reconciliation is an attestation record
+> (what the statement said, on what date, confirmed by whom), not itself
+> a journal posting. `ledger_balance` is computed server-side from the
+> GL at the moment it's recorded — never trusted from client input — so
+> the variance shown is always measured against what the books actually
+> say, not what a form happened to submit.
 
 ### 10.3 Cash in Multiple Currencies
 Many clients hold/transact in both USD cash and ZWG, often at a rate agreed on the spot rather than the official rate. Record the currency and rate used per transaction where it differs from the last recorded rate. Formal month-end revaluation applies once the business banks in more than one currency and reports formally.
@@ -242,6 +274,17 @@ Many clients hold/transact in both USD cash and ZWG, often at a rate agreed on t
 > section's depreciation journal pattern as part of Phase 2, but there's
 > no asset register yet to depreciate. Deferred to Phase 6, alongside the
 > asset register itself.
+
+> **Delivered in Phase 6, with two scoping decisions worth recording:**
+> adding an asset to the register does not itself post an acquisition
+> journal — it's master data (matches §1.1's "equipment/fixtures owned"
+> opening snapshot: durable items the business already has, not
+> necessarily a new cash purchase happening through this system).
+> Depreciation is a manually-triggered straight-line run
+> (`cost / useful_life_months`), not a scheduled job — this app has no
+> cron infrastructure, and matches the cash-first framing already used
+> for the compliance calendar (Phase 5): the consulting team decides
+> when to run it.
 
 ### 11.1 Asset Register
 Anything durable above a value threshold agreed with the client (delivery vehicle, shelving, fridge, till device). Small tools/consumables stay in Expenses.

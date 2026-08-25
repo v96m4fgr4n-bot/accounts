@@ -29,7 +29,9 @@ export default async function ConsoleHome() {
             <li key={t.id}>
               <strong>{t.name}</strong> — {t.formalization_stage} —{' '}
               <a href={`/console/reports?tenant=${t.id}`}>reports</a> —{' '}
-              <a href={`/console/compliance?tenant=${t.id}`}>compliance</a>
+              <a href={`/console/compliance?tenant=${t.id}`}>compliance</a> —{' '}
+              <a href={`/console/banking?tenant=${t.id}`}>banking</a> —{' '}
+              <a href={`/console/assets?tenant=${t.id}`}>assets</a>
             </li>
           ))}
         </ul>

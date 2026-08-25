@@ -366,6 +366,77 @@ already exists" — this is the same DROP-vs-REPLACE lesson from Phase 3
 (0008), just missed again in this migration's first draft. Fixed the
 same way: `DROP VIEW` before `CREATE VIEW`.
 
+## Phase 6 — Assets, casual labour, bank reconciliation
+
+What's here:
+
+- `supabase/migrations/0013_casual_labour.sql` — `casual_workers` +
+  `casual_labour_payments` (§9.1), a proper named-worker log replacing
+  Phase 1's generic `casual_labour` expense-category placeholder — same
+  GL treatment (`expense_casual_labour`), just better-structured
+  capture. `cash_day_summary` extended again for the till impact.
+- `supabase/migrations/0014_bank_accounts.sql` — `bank_accounts` (§10.1),
+  each auto-seeding its own dedicated GL account (not a shared "Bank"
+  account per currency the way Cash is — supports reconciling more than
+  one account independently); `bank_deposits` (§2.3's "bank cash above
+  the next day's float," a till-to-bank transfer, currency-checked
+  against the receiving account); `bank_account_balance(account, as_of)`
+  reporting function; `bank_reconciliations` (§10.2) — an attestation
+  record, not a posting, with `ledger_balance` always computed
+  server-side from the GL rather than trusted from client input.
+- `supabase/migrations/0015_assets.sql` — `assets` register (§11.1, pure
+  master data, no acquisition journal — matches the opening-snapshot
+  framing already used for bank opening balances); `run_asset_depreciation`
+  (manually-triggered straight-line, capped at remaining book value,
+  one `asset_depreciation_runs` row per run so each gets its own
+  journal `source_id`); `dispose_asset` (§11.2, a 2–4 line entry
+  covering cost removal, accumulated depreciation removal, proceeds,
+  and any gain/loss, built directly rather than forced into
+  `post_journal`'s fixed pair). The period-lock check from Phase 4 was
+  pulled out of `post_journal` into its own `check_period_open()`
+  function so `dispose_asset` (which doesn't go through `post_journal`)
+  enforces it too, rather than silently skipping it.
+- `app/client/labour` — log a casual labour payment (worker created
+  implicitly by name, same pattern as customers/suppliers).
+  `app/console/banking` and `app/console/assets` — bank accounts,
+  deposits, reconciliation history; the asset register with per-row
+  depreciate/dispose actions. Console-only, same reasoning as reports
+  and compliance.
+- `tests/assets-labour-banking.test.ts` — casual labour's journal and
+  till impact; a bank account's auto-seeded GL account and the
+  currency-mismatch guard; `bank_reconciliations` ignoring a
+  client-supplied `ledger_balance` in favor of the real one, and its
+  immutability; depreciation's straight-line math, double-posting guard,
+  and full-depreciation cap; and disposal balancing correctly across a
+  gain, a loss, and a break-even case — including the exact edge case
+  (disposing before any depreciation has run) that exposed a real bug
+  during development.
+
+**Deliberately not built, flagged in `docs/erp-blueprint.md` rather than
+silently skipped:** §9.2 formal payroll (needs configurable statutory-
+deduction rates, an employee master, and payslip generation — a build of
+comparable size to Phase 5 in its own right).
+
+**Bugs this phase's real-Supabase verification pass caught before they
+shipped, on top of the design-time fix already described above** (a
+zero-amount journal line when disposing an asset with no depreciation
+posted yet — found by manually working through the accounting identity
+before ever running the code):
+- `run_asset_depreciation`/`dispose_asset` initially granted `EXECUTE`
+  only to `authenticated`, not `service_role` — the same mistake as
+  Phase 4's reporting functions, now on new functions.
+- `bank_accounts`' GL-account-seeding trigger was originally `AFTER
+  INSERT` + a separate `UPDATE` — which meant `INSERT ... RETURNING`
+  (and therefore `.insert(...).select(...)` in the app) came back with
+  `gl_account_id` still `null`, even though a follow-up `SELECT` would
+  have shown it set. `RETURNING` reflects `BEFORE` trigger changes to
+  `NEW`, not a later `AFTER` trigger's separate statement on the same
+  row. Fixed by moving the trigger to `BEFORE INSERT` and setting
+  `NEW.gl_account_id` directly instead.
+- Several test assertions again expected debit-before-credit row order,
+  which doesn't match the tests' own `.order('side')` query — the same
+  recurring mistake as Phases 3 and 4.
+
 ## Build order
 
 | Phase | Scope | Blueprint sections |

@@ -40,6 +40,9 @@ export default async function ClientHome() {
           <li>
             <a href="/client/inventory">Stock</a>
           </li>
+          <li>
+            <a href="/client/labour">Paying someone who helps</a>
+          </li>
         </ul>
       )}
     </main>
