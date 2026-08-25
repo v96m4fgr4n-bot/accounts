@@ -67,12 +67,49 @@ not passing — a skip here should never be read as confirmation. Run it
 against a real (local `supabase start` or disposable test) project before
 trusting isolation on this phase.
 
+## Phase 1 — Daily Cash Control + manual sales/purchase/expense capture
+
+What's here:
+
+- `supabase/migrations/0003_daily_cash_control.sql` — `cash_days` (one row
+  per tenant/day/currency, per Blueprint §10.3), `sales`, `purchases`,
+  `expenses`, all with the shared currency + `exchange_rate_to_usd` shape
+  (non-negotiable #4 — rate is required whenever currency isn't USD, and
+  is never defaulted). A trigger makes a `cash_days` row immutable once
+  `status = 'closed'`, and locks `opening_float`/`trade_date`/`currency`
+  even while open — same "correct by reversal, not edit" spirit as
+  journal immutability (non-negotiable #6); a proper reopen/correction
+  flow arrives with the GL engine in Phase 2. `cash_day_summary` is a
+  `security_invoker` view computing §2.3's expected-cash and variance.
+  **Note:** §8 Expense Function was pulled into this phase — see the
+  build-order note added to `docs/erp-blueprint.md` §8 for why.
+- `supabase/migrations/0004_rls_daily_cash_control.sql` — RLS on all four
+  tables, insert + select only (no client-side update/delete on raw
+  logs, same reasoning as the immutability trigger above).
+- `app/client/day` — the actual daily routine: start the day (record
+  opening float), log a sale/purchase/expense as it happens, close the
+  day (enter the till count, see match/over/short). Copy follows
+  `docs/client-playbook.md` — no "debit," "credit," or "journal"
+  anywhere in this route.
+- `tests/cash-control-invariants.test.ts` — proves a ZWG transaction
+  without a rate is rejected, that two ZWG transactions on the same day
+  keep independently recorded rates, that `cash_day_summary` computes
+  expected cash/variance correctly, and that a closed day (or its
+  opening fields) can't be edited afterward. Same skip-without-env-vars
+  convention as the RLS suite — run it against a real project, don't
+  read a skip as a pass.
+
+Nothing in this phase posts a journal — these are raw logs the GL engine
+(Phase 2) will read and post from, per the README's original phased-build
+note ("Phase 1 is deliberately the fastest path to something real clients
+can use ... backfill journals in Phase 2").
+
 ## Build order
 
 | Phase | Scope | Blueprint sections |
 |---|---|---|
 | 0 | Tenant/auth scaffolding, RLS | — |
-| 1 | Daily Cash Control + manual sales/purchase capture | §2, §3.1, §4.1 |
+| 1 | Daily Cash Control + manual sales/purchase/expense capture | §2, §3.1, §4.1, §8 |
 | 2 | GL engine — auto-posting journals | §3.3, §4.2, §9, §11 |
 | 3 | Debtors/creditors, basic inventory | §5, §6 |
 | 4 | Reporting — trial balance, P&L, balance sheet | §14, §15 |

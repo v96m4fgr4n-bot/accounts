@@ -149,6 +149,18 @@ For repairs, alterations, key cutting, tool hire, etc. — logged the same as a 
 
 Keep categories short and meaningful: Rent, Utilities, Transport/fuel, Airtime/data, Repairs & maintenance, Packaging, Casual labour (Section 9), Bank/mobile money charges. Every expense logged the day it's paid, from the daily cash sheet.
 
+> **Build-order note (added during Phase 1 implementation):** §2.3's end-of-day
+> formula is `opening float + cash sales − cash paid out`. "Cash paid out"
+> only balances correctly if it covers both stock purchases (§3.1) and
+> ordinary expenses (this section) — the original phase table scoped only
+> §3.1 into Phase 1 alongside Daily Cash Control, which would have made the
+> daily cash count unable to reconcile against real cash-paid-out days (e.g.
+> paying rent or transport). Expenses are built into Phase 1 as a result,
+> sharing the same capture shape as purchases (see `docs/README` phase
+> table). Casual labour (§9.1) stays out of Phase 1 — it's paid via the
+> `casual_labour` expense category here as a placeholder until its own log
+> lands in Phase 6.
+
 ## 9. Labour & Payroll
 
 ### 9.1 Casual/Informal Labour Log
