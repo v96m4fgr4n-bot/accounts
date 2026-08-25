@@ -27,9 +27,20 @@ export default async function ClientHome() {
         <p>No business is linked to this login yet. Contact your consultant.</p>
       )}
       {tenants && tenants.length > 0 && (
-        <p>
-          <a href="/client/day">Go to today&apos;s cash sheet</a>
-        </p>
+        <ul>
+          <li>
+            <a href="/client/day">Today&apos;s cash sheet</a>
+          </li>
+          <li>
+            <a href="/client/debtors">Who owes you</a>
+          </li>
+          <li>
+            <a href="/client/creditors">Who you owe</a>
+          </li>
+          <li>
+            <a href="/client/inventory">Stock</a>
+          </li>
+        </ul>
       )}
     </main>
   );

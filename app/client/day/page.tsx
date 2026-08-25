@@ -152,8 +152,14 @@ export default async function DayPage({
                 <form action={logPurchase}>
                   <HiddenFields tenantId={tenant.id} cashDayId={cashDay.id} currency={currency} />
                   <TextField name="description" label="What was bought" required />
+                  <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+                    <select name="payment_method" defaultValue="cash">
+                      <option value="cash">Paid cash</option>
+                      <option value="credit">On credit (pay supplier later)</option>
+                    </select>
+                  </label>
                   <TextField name="supplier" label="From whom" />
-                  <NumberField name="amount" label="Amount paid" required />
+                  <NumberField name="amount" label="Amount owed" required />
                   {currency === 'ZWG' && <RateField />}
                   <ReceiptCheckbox />
                   <button type="submit" style={{ padding: '0.5rem 1rem' }}>

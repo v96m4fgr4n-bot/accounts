@@ -148,10 +148,11 @@ specific phase. What's here:
     purchase → `DR Inventory / CR Cash`; expense → `DR expense account /
     CR Cash`. **Not yet posted** (flagged in `docs/erp-blueprint.md`, not
     silently skipped): the Cost-of-Sales/Inventory-relief leg on a sale
-    (needs Phase 3's per-unit costing), VAT Output (needs Phase 5's
-    VAT-registration flag), cash-count variance (§2.4 has no Blueprint
-    journal pattern to implement), and §9/§11's payroll/depreciation
-    patterns (no source data yet — arrive with Phase 6's capture flows).
+    (needs real per-unit costing, which no phase has shipped yet — see
+    the Phase 3 note below), VAT Output (needs Phase 5's VAT-registration
+    flag), cash-count variance (§2.4 has no Blueprint journal pattern to
+    implement), and §9/§11's payroll/depreciation patterns (no source
+    data yet — arrive with Phase 6's capture flows).
 - `tests/gl-engine.test.ts` — every posted pattern above, the balance
   trigger rejecting a directly-inserted unbalanced pair, immutability
   rejecting `UPDATE`/`DELETE` even via the service role, and
@@ -160,6 +161,51 @@ specific phase. What's here:
   (not just service role) since `reverse_journal` checks `auth.uid()`
   internally — same skip-without-env-vars convention as the other suites.
 
+## Phase 3 — Debtors/creditors, basic inventory
+
+What's here:
+
+- `supabase/migrations/0007_debtors_creditors.sql` — `customers`/
+  `suppliers` masters (created implicitly by the app the first time it
+  looks one up by name and doesn't find it), `customer_payments`/
+  `supplier_payments`, and credit purchases (`purchases` gains
+  `payment_method`/`supplier_id` — Phase 1 was cash-only). `sales` gains
+  `customer_id` alongside its existing free-text `customer_name`, with a
+  backfill linking existing 'account' sales. New `accounts_payable` GL
+  account, seeded/backfilled the same way as 0005.
+- `supabase/migrations/0008_debtors_creditors_gl.sql` — the new journal
+  patterns (credit purchase → `DR Inventory / CR Accounts Payable`;
+  customer payment → `DR Cash / CR Trade Receivables`; supplier payment →
+  `DR Accounts Payable / CR Cash`), and two fixes that came with them:
+  - `cash_day_summary` (Phase 1) only summed sales/purchases/expenses —
+    customer and supplier payments are real till movements too (book
+    credit collected in cash, a supplier paid in cash) and were missing
+    from the day's reconciliation. Extended to include both, and to
+    exclude credit purchases from `purchases_total` (a credit purchase
+    doesn't touch the till until the supplier is actually paid).
+  - `customer_balances`/`supplier_balances` — the §5.2 "who owes us/who
+    we owe, since when" list. Grouped by currency, not just by customer/
+    supplier: a USD debt and a ZWG debt are never silently combined into
+    one converted figure (non-negotiable #4), matching the two separate
+    Cash accounts already in the chart of accounts. Balances are a
+    running total, not per-invoice allocation — proper 30/60/90/120-day
+    ageing (§5.2) is a later refinement, per the Blueprint's own framing.
+- `supabase/migrations/0009_basic_inventory.sql` — `inventory_items` +
+  `stock_counts` (§6.1, §6.2, §6.4), deliberately scoped to an item
+  master and dated count snapshots — no perpetual quantity tracking and
+  no auto-posted count-adjustment journal. See the §6 note added to
+  `docs/erp-blueprint.md` for why (short version: neither has a
+  trustworthy source of truth yet without §4.2's line-item POS capture).
+- `app/client/debtors`, `app/client/creditors`, `app/client/inventory` —
+  client-app pages for recording a customer/supplier payment and logging
+  a stock count, linked from `/client`. `app/client/day`'s sale/purchase
+  forms gained the account/credit options.
+- `tests/debtors-creditors.test.ts` — the three new journal patterns,
+  `customer_balances` staying currency-scoped rather than combining a
+  USD and ZWG balance, and `cash_day_summary` correctly including
+  customer/supplier payments while excluding credit purchases from the
+  till. Same skip-without-env-vars convention as the other suites.
+
 ## Build order
 
 | Phase | Scope | Blueprint sections |
@@ -167,7 +213,7 @@ specific phase. What's here:
 | 0 | Tenant/auth scaffolding, RLS | — |
 | 1 | Daily Cash Control + manual sales/purchase/expense capture | §2, §3.1, §4.1, §8 |
 | 2 | GL engine — auto-posting journals | §3.3, §4.1/§4.2 (partial), §8 |
-| 3 | Debtors/creditors, basic inventory | §5, §6 |
+| 3 | Debtors/creditors, basic inventory | §5, §6.1, §6.2, §6.4 (partial) |
 | 4 | Reporting — trial balance, P&L, balance sheet | §14, §15 |
 | 5 | Compliance calendar + formalization stage | §1.2, §12 |
 | 6 | Assets, casual labour, bank reconciliation | §9.1, §10, §11 |

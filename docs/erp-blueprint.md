@@ -124,9 +124,11 @@ CR  VAT Output                             only once VAT-registered — Section 
 - Revenue Growth = (Current − Previous) ÷ Previous × 100
 - Gross Profit Margin = (Sales − Cost of Sales) ÷ Sales × 100
 
-> **Note:** unavailable until Phase 3 ships real per-unit costing — see the
-> §4.2 note above. Cost of Sales isn't posted before then, so this metric
-> would be computed from a number the system doesn't have.
+> **Note:** still unavailable after Phase 3 — see the §4.2 note above and
+> the §6.1 note below. Basic inventory (Phase 3) added an item master and
+> stock counts, not per-unit costing tied to each sale; Cost of Sales
+> still isn't posted, so this metric would be computed from a number the
+> system doesn't have. Needs §4.2's POS/line-item sale capture.
 
 ## 5. Debtors and Creditors Function
 
@@ -140,6 +142,22 @@ Track informal customer credit the same way as any receivable — customer, amou
 Small team: owner approves and pays directly. As the team grows: payment batch process with second-approver sign-off above an agreed threshold (Section 16).
 
 ## 6. Inventory Function
+
+> **Scope boundary flagged during Phase 3 implementation:** this section
+> is built as an item master + recorded stock counts only — no perpetual
+> quantity-on-hand tracking (a sale doesn't reference specific items or
+> deduct their quantity) and no auto-posted §6.4 count-adjustment journal.
+> Perpetual tracking would need line-item sale capture, which is §4.2's
+> POS upgrade — explicitly "optional, later stage" in this Blueprint, not
+> something to bolt onto the free-text sales log as a side effect. The
+> §6.4 gain/loss journal needs a system-computed "expected" figure to diff
+> the physical count against; the GL's Inventory account balance could
+> stand in for that, but since it only ever increases (no COGS is posted
+> — see §4.2's note), a count-vs-book variance computed that way would
+> conflate real shrinkage with unposted COGS and risk posting a misleading
+> number. Stock counts are recorded as a dated snapshot per item;
+> consultant review decides what to do with a count that looks off, per
+> this section's own "investigate before adjusting."
 
 ### 6.1 Inventory Master
 Item/category, unit of measure, reorder point, purchase cost, selling price — detail level matched to what the owner can realistically maintain.
