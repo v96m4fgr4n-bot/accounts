@@ -264,11 +264,35 @@ Remove from register on sale/scrap/loss; record any gain/loss on disposal.
 ### 12.2 VAT Registration
 Registration required once annual taxable turnover exceeds a set threshold; voluntary registration allowed below it. **Threshold figures vary by source and are periodically revised — store as a configurable value, confirm current figure with ZIMRA/a registered tax practitioner, do not hard-code.** Track turnover on a rolling 12-month basis.
 
+> **Scope boundary flagged during Phase 5 implementation:** `tenants` now
+> has a real `vat_registered` flag and `tax_settings` gives a place to
+> record a configurable, effective-dated threshold/rate — but VAT Output
+> is still not posted on sales (the gap flagged back in the §4.2 Phase 2
+> note). Wiring it in changes existing sale-posting behavior and needs a
+> VAT-inclusive-vs-exclusive amount decision, which deserves its own
+> focused pass rather than being a side effect of the compliance-calendar
+> build. Deliberately deferred, not an oversight.
+
+> **Rolling 12-month turnover tracking:** also not built yet — the
+> Sales Dashboard-style aggregation this needs (`sum(revenue) over the
+> trailing 12 months`) is straightforward against the journal once VAT
+> posting itself is wired in; tracked as a follow-up alongside it rather
+> than built in isolation now.
+
 ### 12.3 Council & Trading Licences
 Track licence + renewal date alongside tax obligations — licence renewal is increasingly linked to tax compliance.
 
 ### 12.4 Compliance Calendar
 Running calendar per client at their current stage — presumptive tax payment, VAT returns if registered, PAYE if applicable, council licence renewal — with reminders. Status per period: Not Started / Prepared / Filed / Confirmed.
+
+> **Implementation note:** items are entered manually by the consulting
+> team (or jointly with the owner — see §16), not auto-generated on a
+> recurring schedule. Matches the Blueprint's own "cash-first, not
+> system-first" framing: the consulting team already knows the calendar
+> and needs a place to track status against it now; auto-generating the
+> next period's item on a schedule is a reasonable later automation, not
+> assumed here. "Reminders" (notifications) also aren't built — this
+> phase is the tracked record a reminder system would read from.
 
 ### 12.5 Penalty & Interest Tracking
 Logged on its own, separate from ordinary expenses, so cause gets fixed rather than absorbed.

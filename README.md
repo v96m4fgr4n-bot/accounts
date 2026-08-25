@@ -305,6 +305,67 @@ aggregated accounts across currencies exactly like `customer_balances`
 originally did in Phase 3, caught this time before it ever got as far as
 a test run.
 
+## Phase 5 — Compliance calendar + formalization stage
+
+What's here:
+
+- `supabase/migrations/0012_compliance.sql`:
+  - `tenants.vat_registered` — a real flag now, separate from
+    `formalization_stage` (a "registered" tenant may still be below the
+    VAT threshold), with a check constraint keeping that ordering honest.
+    `tenants` had no `UPDATE` policy at all before this (tenant lifecycle
+    was deliberately left to Phase 7) — rather than opening the whole
+    row, 0010's blanket `authenticated` grant is revoked for just this
+    table and re-granted on exactly the two columns a compliance
+    workflow touches (`formalization_stage`, `vat_registered`), via
+    Postgres column-level `GRANT`. `name`/`id`/etc. stay unreachable
+    until Phase 7 defines that workflow properly.
+  - `tax_settings` — non-negotiable #5's configurable, effective-dated
+    figures (e.g. the VAT threshold). Global, not tenant-scoped (a
+    national rule, not a per-client setting); insert-only and
+    consultant-gated, immutable once recorded (reuses
+    `journal_immutable()`) — a wrong figure gets corrected by recording
+    the right one with its own effective-date, not by editing history.
+    `current_tax_setting(key, as_of)` resolves the value in effect for a
+    date.
+  - `compliance_items` — the §12.4 calendar (council licence renewals
+    share this table too — same shape, different `obligation_type`).
+    Unlike the immutable financial tables, status is a real mutable
+    workflow (`not_started → prepared → filed → confirmed`) any tenant
+    member can progress, matching §16's "owner or consulting team,
+    jointly" — not gated to consultants the way `period_closes`/
+    `reverse_journal` are.
+  - `compliance_penalties` — §12.5's "logged on its own, separate from
+    ordinary expenses." Same raw-log shape as Phase 1 (tied to a
+    `cash_day`, insert+select only), posts `DR Penalties Expense / CR
+    Cash`, and — the same till-reconciliation fix pattern as Phase 3 —
+    `cash_day_summary` now includes it in the day's cash-out total.
+- `app/console/compliance` — tenant picker, formalization/VAT toggle,
+  the compliance calendar (add + update status, overdue items flagged),
+  tax settings (view + record a new effective-dated figure), and a
+  log-a-penalty form. Console-only, same reasoning as reports in Phase 4.
+- `tests/compliance.test.ts` — `tax_settings` consultant-only and
+  immutable, `current_tax_setting` resolving the right effective value,
+  any tenant member progressing a compliance item, the `tenants` column-
+  level grant actually restricting to just the two intended columns (a
+  same-request attempt to also rename the tenant is rejected outright),
+  the VAT-requires-formalized check constraint, and a penalty's journal
+  plus its appearance in `cash_day_summary`.
+
+**Deliberately not built this phase, flagged in `docs/erp-blueprint.md`
+rather than silently skipped:** VAT Output still isn't posted on sales
+(needs a VAT-inclusive/exclusive decision and changes existing Phase 2
+posting behavior — its own focused pass, not a side effect of this one);
+rolling 12-month turnover tracking (§12.2) follows once VAT posting
+exists; and compliance items are entered manually, not auto-generated on
+a recurring schedule — matches the Blueprint's own cash-first framing.
+
+**Another real bug caught by actually running this against Postgres:**
+`cash_day_summary`'s `CREATE OR REPLACE VIEW` failed with "relation
+already exists" — this is the same DROP-vs-REPLACE lesson from Phase 3
+(0008), just missed again in this migration's first draft. Fixed the
+same way: `DROP VIEW` before `CREATE VIEW`.
+
 ## Build order
 
 | Phase | Scope | Blueprint sections |

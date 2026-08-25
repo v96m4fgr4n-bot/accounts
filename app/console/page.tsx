@@ -28,7 +28,8 @@ export default async function ConsoleHome() {
           {tenants.map((t) => (
             <li key={t.id}>
               <strong>{t.name}</strong> — {t.formalization_stage} —{' '}
-              <a href={`/console/reports?tenant=${t.id}`}>reports</a>
+              <a href={`/console/reports?tenant=${t.id}`}>reports</a> —{' '}
+              <a href={`/console/compliance?tenant=${t.id}`}>compliance</a>
             </li>
           ))}
         </ul>
