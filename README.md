@@ -249,6 +249,62 @@ What's here:
   customer/supplier payments while excluding credit purchases from the
   till. Same skip-without-env-vars convention as the other suites.
 
+## Phase 4 — Reporting (trial balance, P&L, balance sheet) + period close
+
+What's here:
+
+- `supabase/migrations/0011_reporting_and_period_close.sql`:
+  - `trial_balance(tenant, as_of)`, `income_statement(tenant, from, to)`,
+    `balance_sheet(tenant, as_of)` — `SECURITY INVOKER` SQL functions
+    (not `SECURITY DEFINER` — nothing here needs elevated privilege, so
+    they're subject to the caller's own RLS on `accounts`/
+    `journal_entries`/`journal_lines` exactly like a plain `SELECT`
+    would be; asking for a tenant you're not a member of just comes back
+    empty). All three are grouped by currency, not combined — see the
+    §15 note added to `docs/erp-blueprint.md`. The trial balance's
+    `debit_balance`/`credit_balance` columns are netted per account so
+    their column totals are equal *within each currency*, the
+    report-level demonstration of non-negotiable #3. The balance sheet's
+    equity side is a single derived "Retained Earnings" row per
+    currency (cumulative revenue minus expense to date) rather than a
+    stored account — there's no owner's-equity/capital account yet.
+  - `period_closes` (§14's "closed periods can't be posted to without
+    owner authorization") — insert-only, one row per close, `closed_by`
+    must be a consultant on the tenant (RLS), and a trigger rejects
+    closing to an earlier-or-equal date than the tenant's current
+    watermark (extend forward only, never "unclose"). Immutable once
+    created, reusing `journal_immutable()` from Phase 2.
+  - `post_journal` (Phase 2) gains a period-lock check: posting into a
+    closed period is rejected unless the acting user (`auth.uid()`,
+    resolved from the JWT regardless of `post_journal`'s own
+    `SECURITY DEFINER` context) is a consultant on that tenant. Applies
+    uniformly to every journal pattern through the one shared primitive.
+    `reverse_journal` is unaffected — it always posts as of today.
+- `app/console/reports` — tenant picker, the three reports with
+  date/range controls, and a close-period form. This is console-only
+  (not `/app/client`), per CLAUDE.md's own surface split — reviewing
+  financial statements is consulting-team work, not part of the client's
+  daily routine.
+- `tests/reporting-and-period-close.test.ts` — the trial balance's
+  columns summing equal per currency, the income statement and balance
+  sheet staying currency-scoped (posts both a USD and a ZWG sale and
+  checks neither report combines them), the balance sheet actually
+  balancing per currency via the derived Retained Earnings line, the
+  period-close monotonic/immutable/consultant-only guards, and a closed
+  period blocking a client_user's posting while allowing a consultant's.
+  Needs `SUPABASE_ANON_KEY` too, same reason as `reverse_journal`'s test
+  in Phase 2 — the authorization check reads `auth.uid()`, which is null
+  under the service-role key.
+
+**Bugs this phase's real-Supabase verification pass caught before they
+shipped:** the three reporting functions initially had `EXECUTE` granted
+only to `authenticated`, not `service_role` — a separate SQL-level grant
+from RLS bypass, easy to assume `service_role` gets "everything" when it
+doesn't; fixed by granting both. And the first draft of these functions
+aggregated accounts across currencies exactly like `customer_balances`
+originally did in Phase 3, caught this time before it ever got as far as
+a test run.
+
 ## Build order
 
 | Phase | Scope | Blueprint sections |

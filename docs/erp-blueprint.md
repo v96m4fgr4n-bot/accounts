@@ -282,9 +282,33 @@ Keep it short and specific to what the business needs — expandable as the busi
 - Closed periods can't be posted to without owner authorization
 - Corrections are by reversal, not deletion — always a trail
 
+> **Implementation note (added during Phase 4):** "owner authorization"
+> is modelled as "a consultant on the tenant" — the client-side app
+> (client_user) can never post into a period once closed; a consultant
+> can, which is how an authorized correction actually gets in.
+> `reverse_journal()` (Phase 2) is unaffected either way since it always
+> posts as of the current date, never backdated.
+
 ## 15. Financial Statements Function
 
 Even a business that never needed financial statements before will need them — loan application, supplier credit line, tax registration. Minimum: a simple P&L and Statement of Financial Position each month, mapped from the same accounts used day to day, nothing prepared separately after the fact.
+
+> **Scope boundary flagged during Phase 4 implementation:** the trial
+> balance, P&L, and balance sheet are all computed per currency, not
+> combined — only Cash is currency-split in the chart of accounts
+> (Cash - USD / Cash - ZWG); Revenue, Inventory, and the expense accounts
+> carry both USD and ZWG activity, so a report that summed them together
+> without splitting by currency would silently combine incompatible
+> figures (the same class of bug already caught and fixed for
+> `customer_balances`/`supplier_balances` in Phase 3). A USD-and-ZWG
+> business currently sees two parallel statements, not one converted
+> figure — combined-currency reporting (an actual FX conversion, at a
+> real rate, for presentation) is a deliberately deferred later
+> refinement, not attempted here. There's also no owner's-equity/capital
+> account yet (§1.1's opening-balance snapshot isn't built), so the
+> balance sheet's only equity line is a computed "Retained Earnings"
+> (cumulative net income to date) rather than a stored account — see
+> `supabase/migrations/0011_reporting_and_period_close.sql`.
 
 ## 16. Approval Matrix
 
