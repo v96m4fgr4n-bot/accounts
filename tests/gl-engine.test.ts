@@ -25,7 +25,9 @@ const describeIfConfigured = canRun ? describe : describe.skip;
 
 describeIfConfigured('GL engine', () => {
   let admin: SupabaseClient;
-  const suffix = 'gl-test';
+  // Random per run — see the afterAll note below for why this can't be
+  // a fixed suffix.
+  const suffix = `gl-test-${crypto.randomUUID().slice(0, 8)}`;
   const tenantName = `GL Test Tenant (${suffix})`;
   const consultantEmail = `gl-consultant-${suffix}@example.test`;
   const password = 'correct horse battery staple 3!';
@@ -118,11 +120,14 @@ describeIfConfigured('GL engine', () => {
     if (mErr) throw mErr;
   });
 
-  afterAll(async () => {
-    if (userId) await admin.auth.admin.deleteUser(userId);
-    if (consultantId) await admin.auth.admin.deleteUser(consultantId);
-    if (tenantId) await admin.from('tenants').delete().eq('id', tenantId);
-  });
+  // No afterAll cleanup: every tenant gets a chart of accounts the
+  // moment it's created (0005's seed_default_accounts trigger), and
+  // accounts.tenant_id is ON DELETE RESTRICT by design — a tenant's
+  // history can never be silently deleted, including test tenants (and
+  // journal_entries/journal_lines are separately immutable regardless of
+  // role — non-negotiable #6). Run this suite against a disposable/local
+  // project you reset between runs, not a long-lived one — see README's
+  // real-project verification section.
 
   test('a cash sale posts DR Cash / CR Revenue', async () => {
     const dayId = await openDay('2026-02-01', 'USD', 50);
@@ -154,6 +159,13 @@ describeIfConfigured('GL engine', () => {
 
   test('an account (book credit) sale posts DR Trade Receivables / CR Revenue', async () => {
     const dayId = await openDay('2026-02-02', 'USD', 50);
+    // Phase 3 (0007) added customer_id and requires it for 'account'
+    // sales — sales_account_requires_customer.
+    const { data: customer } = await admin
+      .from('customers')
+      .insert({ tenant_id: tenantId, name: 'Mai Moyo' })
+      .select('id')
+      .single();
     const { data: sale, error } = await admin
       .from('sales')
       .insert({
@@ -164,6 +176,7 @@ describeIfConfigured('GL engine', () => {
         currency: 'USD',
         payment_method: 'account',
         customer_name: 'Mai Moyo',
+        customer_id: customer!.id,
         recorded_by: userId,
       })
       .select('id')
@@ -205,8 +218,8 @@ describeIfConfigured('GL engine', () => {
     const cashZwgId = await accountId('cash_zwg');
 
     expect(lines).toEqual([
-      { account_id: inventoryId, side: 'debit', amount: 12000 },
       { account_id: cashZwgId, side: 'credit', amount: 12000 },
+      { account_id: inventoryId, side: 'debit', amount: 12000 },
     ]);
   });
 

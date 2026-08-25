@@ -23,7 +23,10 @@ const describeIfConfigured = canRun ? describe : describe.skip;
 describeIfConfigured('tenant RLS isolation', () => {
   let admin: SupabaseClient;
 
-  const suffix = 'rls-test';
+  // Random per run: tenants/users created here are never deleted (see the
+  // afterAll note below), so a fixed suffix would collide with
+  // "already registered" on a second run against the same project.
+  const suffix = `rls-test-${crypto.randomUUID().slice(0, 8)}`;
   const tenantAName = `Tenant A (${suffix})`;
   const tenantBName = `Tenant B (${suffix})`;
   const userAEmail = `owner-a-${suffix}@example.test`;
@@ -79,12 +82,16 @@ describeIfConfigured('tenant RLS isolation', () => {
     if (mErr) throw mErr;
   });
 
-  afterAll(async () => {
-    if (userAId) await admin.auth.admin.deleteUser(userAId);
-    if (userBId) await admin.auth.admin.deleteUser(userBId);
-    if (tenantAId) await admin.from('tenants').delete().eq('id', tenantAId);
-    if (tenantBId) await admin.from('tenants').delete().eq('id', tenantBId);
-  });
+  // No afterAll cleanup: tenants.seed_default_accounts() (0005) gives
+  // every tenant a chart of accounts the moment it's created, and
+  // accounts.tenant_id is ON DELETE RESTRICT — by design, so a tenant's
+  // history can never be silently lost. That means a test tenant can
+  // never actually be deleted afterward either; a "cleanup" call here
+  // would just fail silently (its error was never checked) and leave
+  // the row anyway, so it's honest to not pretend. Run this suite
+  // against a disposable/local project you reset between runs (`supabase
+  // stop && supabase start`, or a throwaway hosted project) rather than
+  // a long-lived one — see README's real-project verification section.
 
   async function signInAs(email: string) {
     const client = createClient(SUPABASE_URL!, ANON_KEY!, {

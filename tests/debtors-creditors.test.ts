@@ -20,7 +20,9 @@ const describeIfConfigured = canRun ? describe : describe.skip;
 
 describeIfConfigured('debtors, creditors, and inventory (Phase 3)', () => {
   let admin: SupabaseClient;
-  const suffix = 'dc-test';
+  // Random per run — see the afterAll note below for why this can't be
+  // a fixed suffix.
+  const suffix = `dc-test-${crypto.randomUUID().slice(0, 8)}`;
   const tenantName = `Debtors/Creditors Test Tenant (${suffix})`;
 
   let tenantId: string;
@@ -101,10 +103,13 @@ describeIfConfigured('debtors, creditors, and inventory (Phase 3)', () => {
     if (mErr) throw mErr;
   });
 
-  afterAll(async () => {
-    if (userId) await admin.auth.admin.deleteUser(userId);
-    if (tenantId) await admin.from('tenants').delete().eq('id', tenantId);
-  });
+  // No afterAll cleanup: every tenant gets a chart of accounts the
+  // moment it's created (0005's seed_default_accounts trigger), and
+  // accounts.tenant_id is ON DELETE RESTRICT by design — a tenant's
+  // history can never be silently deleted, including test tenants. Run
+  // this suite against a disposable/local project you reset between
+  // runs, not a long-lived one — see README's real-project verification
+  // section.
 
   test('a credit purchase posts DR Inventory / CR Accounts Payable', async () => {
     const dayId = await openDay('2026-03-01', 'USD', 50);
@@ -136,8 +141,8 @@ describeIfConfigured('debtors, creditors, and inventory (Phase 3)', () => {
     const apId = await accountId('accounts_payable');
 
     expect(lines).toEqual([
-      { account_id: inventoryId, side: 'debit', amount: 200 },
       { account_id: apId, side: 'credit', amount: 200 },
+      { account_id: inventoryId, side: 'debit', amount: 200 },
     ]);
   });
 
@@ -168,8 +173,8 @@ describeIfConfigured('debtors, creditors, and inventory (Phase 3)', () => {
     const apId = await accountId('accounts_payable');
     const cashId = await accountId('cash_usd');
     expect(spLines).toEqual([
-      { account_id: apId, side: 'debit', amount: 60 },
       { account_id: cashId, side: 'credit', amount: 60 },
+      { account_id: apId, side: 'debit', amount: 60 },
     ]);
 
     const { data: customer } = await admin
@@ -195,8 +200,8 @@ describeIfConfigured('debtors, creditors, and inventory (Phase 3)', () => {
     const cpLines = await linesFor(cpEntry.id);
     const receivablesId = await accountId('trade_receivables');
     expect(cpLines).toEqual([
-      { account_id: cashId, side: 'debit', amount: 35 },
       { account_id: receivablesId, side: 'credit', amount: 35 },
+      { account_id: cashId, side: 'debit', amount: 35 },
     ]);
   });
 

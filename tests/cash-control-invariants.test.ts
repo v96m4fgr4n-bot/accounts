@@ -20,7 +20,9 @@ const describeIfConfigured = canRun ? describe : describe.skip;
 
 describeIfConfigured('cash control invariants', () => {
   let admin: SupabaseClient;
-  const suffix = 'cash-test';
+  // Random per run — see the afterAll note below for why this can't be
+  // a fixed suffix.
+  const suffix = `cash-test-${crypto.randomUUID().slice(0, 8)}`;
   const tenantName = `Cash Test Tenant (${suffix})`;
   const userEmail = `cash-owner-${suffix}@example.test`;
   const password = 'correct horse battery staple 2!';
@@ -55,10 +57,13 @@ describeIfConfigured('cash control invariants', () => {
     if (mErr) throw mErr;
   });
 
-  afterAll(async () => {
-    if (userId) await admin.auth.admin.deleteUser(userId);
-    if (tenantId) await admin.from('tenants').delete().eq('id', tenantId);
-  });
+  // No afterAll cleanup: every tenant gets a chart of accounts the
+  // moment it's created (0005's seed_default_accounts trigger), and
+  // accounts.tenant_id is ON DELETE RESTRICT by design — a tenant's
+  // history can never be silently deleted, including test tenants. Run
+  // this suite against a disposable/local project you reset between
+  // runs, not a long-lived one — see README's real-project verification
+  // section.
 
   async function openDay(tradeDate: string, currency: 'USD' | 'ZWG', openingFloat: number) {
     const { data, error } = await admin

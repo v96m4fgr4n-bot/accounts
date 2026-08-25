@@ -154,9 +154,17 @@ $$;
 -- sales/purchases/expenses. Customer payments (cash in) and supplier
 -- payments (cash out) are real till movements too — a business that
 -- collects book credit or pays a supplier in cash today would show a
--- variance the owner did nothing wrong to cause. CREATE OR REPLACE VIEW
--- (unlike a table) needs no migration ceremony beyond this.
-create or replace view cash_day_summary
+-- variance the owner did nothing wrong to cause.
+--
+-- DROP + CREATE, not CREATE OR REPLACE: Postgres only allows REPLACE to
+-- append new output columns at the end, not insert one ahead of existing
+-- columns (customer_payments_total lands between cash_sales and
+-- purchases_total here) — REPLACE errors with "cannot change name of
+-- view column" on that shape of change. Nothing else references this
+-- view, so dropping it first is safe.
+drop view cash_day_summary;
+
+create view cash_day_summary
   with (security_invoker = true)
 as
 select

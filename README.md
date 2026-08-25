@@ -45,27 +45,67 @@ cp .env.example .env.local   # fill in Supabase project URL + anon key
 ```
 
 Apply the migrations to your Supabase project (either via the Supabase CLI
-`supabase db push`, or paste the two files into the SQL editor in order).
+`supabase db push`, or paste the files into the SQL editor in order).
 
 ```bash
 npm run dev
 ```
 
-### Verifying RLS is actually enforced
+### Running against a real Supabase project
 
-This is the step CLAUDE.md calls out as non-negotiable — don't skip it.
+Every test suite in `tests/` reports as **skipped**, not passing, unless
+`SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` are set —
+a skip should never be read as confirmation. This project has been verified
+end-to-end against a real local Postgres via the Supabase CLI (see below);
+do the same before trusting any phase, especially after a schema change.
 
 ```bash
-SUPABASE_URL=https://<project>.supabase.co \
-SUPABASE_ANON_KEY=<anon key> \
-SUPABASE_SERVICE_ROLE_KEY=<service role key> \
+npx supabase init          # once, if supabase/config.toml doesn't exist yet
+npx supabase start -x studio,imgproxy,logflare,vector,realtime,storage-api,edge-runtime,mailpit,supavisor,postgres-meta
+```
+
+The `-x` exclusions skip services this project's tests don't need
+(dashboard, image proxy, log aggregation, realtime, file storage, edge
+functions, local email capture, connection pooler, `postgres-meta`),
+which keeps first-run image pulls to just `postgres`, `gotrue`, `postgrest`,
+and `kong` — meaningfully faster and lighter than the full stack. `start`
+prints `API_URL`, `ANON_KEY`, and `SERVICE_ROLE_KEY` — export those as
+`SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` and run:
+
+```bash
 npm test
 ```
 
-Without those three env vars the RLS test suite reports as **skipped**,
-not passing — a skip here should never be read as confirmation. Run it
-against a real (local `supabase start` or disposable test) project before
-trusting isolation on this phase.
+**Test data is never cleaned up, by design, and that's expected.** Every
+tenant gets its chart of accounts the moment it's created
+(`seed_default_accounts`, 0005), and `accounts.tenant_id` is `ON DELETE
+RESTRICT` — a tenant's history can't be silently deleted, test tenants
+included, and journal rows are separately immutable regardless of role
+(non-negotiable #6). The suites generate a random per-run suffix for
+emails/tenant names specifically so repeat runs against the same project
+never collide — but data still accumulates. Treat the project you're
+testing against as disposable: reset a local stack between real test
+passes (`npx supabase stop --no-backup && npx supabase start -x ...`), or
+use a throwaway hosted project, never a project carrying real client data.
+
+**What actually got caught by running this for real** (fixed, not just
+noted): `cash_day_summary`'s `CREATE OR REPLACE VIEW` failed outright —
+Postgres only allows `REPLACE` to append new output columns at the end,
+not insert one ahead of existing ones, which is exactly what adding
+`customer_payments_total` did; fixed by `DROP VIEW` + `CREATE VIEW`
+instead (0008). Every table from Phase 0 onward was missing the base SQL
+`GRANT`s that make RLS policies reachable at all — `anon`/`authenticated`/
+`service_role` had zero privileges on any table because no migration ever
+granted them and this local stack doesn't set that up implicitly the way
+some hosted-project assumptions expect; fixed with explicit `GRANT`s plus
+`ALTER DEFAULT PRIVILEGES` for future tables (0010) — this also positively
+confirmed the Phase 2 GL engine's RLS-bypass-as-table-owner design
+actually works once the base grants exist (`service_role` has
+`BYPASSRLS` directly, confirmed via `pg_roles`). Also caught: a handful of
+test-assertion bugs (expected debit/credit row order didn't match the
+tests' own `.order('side')` query — 'credit' sorts before 'debit'
+alphabetically; and `tests/gl-engine.test.ts`'s account-sale test predated
+Phase 3's `customer_id` requirement).
 
 ## Phase 1 — Daily Cash Control + manual sales/purchase/expense capture
 
@@ -140,9 +180,12 @@ specific phase. What's here:
     the `SECURITY DEFINER` functions (owned by the migration role, which
     bypasses RLS as table owner *because* it isn't forced), and `EXECUTE`
     on those functions is revoked from `public` so they can't be called
-    directly via RPC either — only triggers can invoke them. **This
-    depends on the Supabase migration role's RLS-bypass-as-owner behavior
-    — verify against a real project**, same caveat category as below.
+    directly via RPC either — only triggers can invoke them. **Confirmed
+    against a real local Supabase stack** (see "Running against a real
+    Supabase project" below) — `service_role` actually has the
+    `BYPASSRLS` role attribute directly (`pg_roles`), so this works
+    regardless of forced/not-forced once the base table `GRANT`s exist
+    (0010 — those were missing everywhere until verified for real).
   - Journal patterns actually posted: cash sale → `DR Cash / CR Revenue`;
     account (book credit) sale → `DR Trade Receivables / CR Revenue`;
     purchase → `DR Inventory / CR Cash`; expense → `DR expense account /
