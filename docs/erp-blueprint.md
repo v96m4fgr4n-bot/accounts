@@ -69,6 +69,14 @@ Every sale logged at time of sale: item/category, amount, cash or credit.
 ### 2.4 Variance Investigation
 Any shortage/overage noted the day it happens. For a 1–2 person team, the owner's daily review of the cash sheet is the primary compensating control (no second person to independently check the till).
 
+> **Gap flagged during Phase 2 (GL engine) implementation:** unlike §6.4's
+> stock-count variance, this section gives no journal pattern for a cash
+> shortage/overage. Phase 2 deliberately does **not** invent one — a cash
+> variance is computed and shown (`cash_day_summary`, Phase 1) but does not
+> itself post a journal entry. Needs a consulting-team decision (e.g. an
+> analogous `DR/CR Cash Variance` P&L account, mirroring §6.4) before it's
+> implemented.
+
 ## 3. Purchasing Function
 
 ### 3.1 Recording a Cash Purchase (default)
@@ -101,10 +109,24 @@ CR  Revenue
 CR  VAT Output                             only once VAT-registered — Section 12
 ```
 
+> **Simplification flagged during Phase 2 (GL engine) implementation,
+> confirmed with the consultancy:** the Cost of Sales / Inventory-relief
+> leg needs per-unit costing, which doesn't exist until Phase 3 ("basic
+> inventory"). Until then, a sale posts only `DR Cash (or Trade
+> Receivables) / CR Revenue` — no COGS leg, so the system never posts an
+> estimated cost figure into real financial statements. The VAT Output leg
+> is also deferred, to Phase 5, since it needs a tenant's actual
+> VAT-registration flag (§12.2), not just its formalization stage. Both
+> legs are added once their prerequisite data exists.
+
 ### 4.3 Sales Dashboard
 - Top Selling Products by Revenue
 - Revenue Growth = (Current − Previous) ÷ Previous × 100
 - Gross Profit Margin = (Sales − Cost of Sales) ÷ Sales × 100
+
+> **Note:** unavailable until Phase 3 ships real per-unit costing — see the
+> §4.2 note above. Cost of Sales isn't posted before then, so this metric
+> would be computed from a number the system doesn't have.
 
 ## 5. Debtors and Creditors Function
 
@@ -163,6 +185,15 @@ Keep categories short and meaningful: Rent, Utilities, Transport/fuel, Airtime/d
 
 ## 9. Labour & Payroll
 
+> **Build-order note (added during Phase 2 implementation):** the original
+> phase table listed this section's journal pattern (§9.2) as part of
+> Phase 2 (GL engine). It's deferred to Phase 6 instead, alongside the
+> casual labour log (§9.1) and formal payroll capture themselves — neither
+> has a source data model yet (no employee master), and posting logic with
+> no data to post from would be dead code. In the meantime, casual labour
+> payments are captured as the `casual_labour` Expense category (§8) and
+> post the ordinary expense journal.
+
 ### 9.1 Casual/Informal Labour Log
 Record who was paid, for what, how much, when — the starting point even before formal payroll exists.
 
@@ -187,6 +218,12 @@ Once banking is part of the routine, match banked cash against the bank statemen
 Many clients hold/transact in both USD cash and ZWG, often at a rate agreed on the spot rather than the official rate. Record the currency and rate used per transaction where it differs from the last recorded rate. Formal month-end revaluation applies once the business banks in more than one currency and reports formally.
 
 ## 11. Assets Function
+
+> **Build-order note (added during Phase 2 implementation):** same
+> reasoning as the §9 note above — the original phase table listed this
+> section's depreciation journal pattern as part of Phase 2, but there's
+> no asset register yet to depreciate. Deferred to Phase 6, alongside the
+> asset register itself.
 
 ### 11.1 Asset Register
 Anything durable above a value threshold agreed with the client (delivery vehicle, shelving, fridge, till device). Small tools/consumables stay in Expenses.

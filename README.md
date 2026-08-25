@@ -104,13 +104,69 @@ Nothing in this phase posts a journal — these are raw logs the GL engine
 note ("Phase 1 is deliberately the fastest path to something real clients
 can use ... backfill journals in Phase 2").
 
+## Phase 2 — GL engine (auto-posting journals)
+
+Design was reviewed in plan mode first, per CLAUDE.md's instruction for this
+specific phase. What's here:
+
+- `supabase/migrations/0005_chart_of_accounts.sql` — `accounts` table,
+  auto-seeded per tenant (a trigger on `tenants` insert, plus a backfill for
+  pre-existing tenants) with exactly the 14 accounts this phase posts to:
+  `Cash - USD`, `Cash - ZWG` (kept separate, no forced conversion — §10.3),
+  `Inventory`, `Trade Receivables`, `Revenue`, and one `expense_<category>`
+  account per Phase 1 expense category.
+- `supabase/migrations/0006_gl_engine.sql` — `journal_entries` /
+  `journal_lines`, and the posting engine:
+  - **Balance is a real DB invariant** (non-negotiable #3): a deferred
+    constraint trigger on `journal_lines` sums debits minus credits per
+    entry at commit time and rejects anything nonzero.
+  - **Immutability is unconditional** (non-negotiable #6): a trigger
+    rejects all `UPDATE`/`DELETE` on `journal_entries`/`journal_lines`,
+    including from the service role — correction is only ever a new entry
+    via `reverse_journal()`, which mirrors the original's lines and guards
+    against double-reversal. Restricted to a `consultant` on the entry's
+    tenant.
+  - **Posting is trigger-based**, not app-level: `AFTER INSERT` triggers on
+    `sales`/`purchases`/`expenses` call `SECURITY DEFINER` posting
+    functions in the same transaction as the client's insert, so a
+    transaction can never exist without its journal (non-negotiable #1).
+    A one-time backfill posts journals for any Phase-1 rows that predate
+    this migration.
+  - **Journals are single-currency** — both legs share the source
+    transaction's currency and raw amount (non-negotiable #4: no silent
+    conversion). Combined-currency reporting is a Phase 4 concern.
+  - RLS here is enabled but **not forced**, unlike Phase 0/1's tenant
+    tables: `authenticated` gets `SELECT` only; every write goes through
+    the `SECURITY DEFINER` functions (owned by the migration role, which
+    bypasses RLS as table owner *because* it isn't forced), and `EXECUTE`
+    on those functions is revoked from `public` so they can't be called
+    directly via RPC either — only triggers can invoke them. **This
+    depends on the Supabase migration role's RLS-bypass-as-owner behavior
+    — verify against a real project**, same caveat category as below.
+  - Journal patterns actually posted: cash sale → `DR Cash / CR Revenue`;
+    account (book credit) sale → `DR Trade Receivables / CR Revenue`;
+    purchase → `DR Inventory / CR Cash`; expense → `DR expense account /
+    CR Cash`. **Not yet posted** (flagged in `docs/erp-blueprint.md`, not
+    silently skipped): the Cost-of-Sales/Inventory-relief leg on a sale
+    (needs Phase 3's per-unit costing), VAT Output (needs Phase 5's
+    VAT-registration flag), cash-count variance (§2.4 has no Blueprint
+    journal pattern to implement), and §9/§11's payroll/depreciation
+    patterns (no source data yet — arrive with Phase 6's capture flows).
+- `tests/gl-engine.test.ts` — every posted pattern above, the balance
+  trigger rejecting a directly-inserted unbalanced pair, immutability
+  rejecting `UPDATE`/`DELETE` even via the service role, and
+  `reverse_journal` producing a correctly mirrored entry plus rejecting a
+  second reversal of the same original. Requires `SUPABASE_ANON_KEY` too
+  (not just service role) since `reverse_journal` checks `auth.uid()`
+  internally — same skip-without-env-vars convention as the other suites.
+
 ## Build order
 
 | Phase | Scope | Blueprint sections |
 |---|---|---|
 | 0 | Tenant/auth scaffolding, RLS | — |
 | 1 | Daily Cash Control + manual sales/purchase/expense capture | §2, §3.1, §4.1, §8 |
-| 2 | GL engine — auto-posting journals | §3.3, §4.2, §9, §11 |
+| 2 | GL engine — auto-posting journals | §3.3, §4.1/§4.2 (partial), §8 |
 | 3 | Debtors/creditors, basic inventory | §5, §6 |
 | 4 | Reporting — trial balance, P&L, balance sheet | §14, §15 |
 | 5 | Compliance calendar + formalization stage | §1.2, §12 |
