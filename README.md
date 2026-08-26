@@ -437,6 +437,71 @@ before ever running the code):
   which doesn't match the tests' own `.order('side')` query — the same
   recurring mistake as Phases 3 and 4.
 
+## Phase 7 — Console back-office: cross-client dashboard, journal review, approvals
+
+What's here:
+
+- `supabase/migrations/0016_approvals.sql` — `approval_thresholds`
+  (per-tenant, per-decision-type, per-currency dollar figure a
+  consultant sets; mutable, unlike `tax_settings`/`period_closes`, via a
+  `BEFORE UPDATE` trigger that overwrites `updated_by`/`updated_at`
+  regardless of client input — a threshold is current-state config, not
+  an audit-trail figure). `needs_approval`/`approved_by`/`approved_at`
+  added to `purchases`, `supplier_payments`, `casual_labour_payments`,
+  set once at insert time by a `BEFORE INSERT` trigger per table that
+  compares the new row's amount against the matching threshold (credit
+  purchases only — a cash purchase never flags). `signed_off_by`/
+  `signed_off_at` added to `stock_counts`, unconditional (no threshold —
+  see the §16 note in `docs/erp-blueprint.md` for why). All four
+  approve/sign-off columns use the same column-level-GRANT pattern as
+  Phase 5's `tenants.formalization_stage`: the table's blanket
+  `authenticated` UPDATE grant is revoked and re-granted on exactly the
+  two columns, paired with an RLS policy that requires both a consultant
+  membership and `approved_by = auth.uid()` (or `signed_off_by =
+  auth.uid()`) — a consultant can clear a flag but can't record someone
+  else as the approver, and can't touch any other column in the same
+  request.
+- `app/console/page.tsx` — rebuilt from a bare tenant list into an actual
+  cross-client dashboard: per-client today's cash-day status, a count of
+  pending approvals, unsigned stock counts, and overdue compliance
+  items, each linking straight into the relevant console page.
+- `app/console/journal/page.tsx` — browse `journal_entries`/
+  `journal_lines` for a tenant over a date range, each entry showing its
+  full debit/credit breakdown; a consultant can reverse any
+  non-reversal, not-yet-reversed entry inline (`reverse_journal`, built
+  in Phase 2, had no UI caller until now).
+- `app/console/approvals/page.tsx` — per-tenant threshold configuration
+  form (one row per decision type × currency) plus the flagged-item
+  review queue across all three approval-matrix tables and the
+  stock-count sign-off queue, each with an approve/sign-off action.
+- `tests/approvals.test.ts` — threshold-based flagging (over flags,
+  at-threshold and cash purchases never flag, an unconfigured currency
+  never flags); the approval_thresholds insert/update RLS split (insert
+  requires the caller's own id, update's trigger overwrites regardless
+  of input); and the approve/sign-off column-grant shape on all four
+  columns — a client_user is refused outright, a consultant can't name
+  another consultant as approver/signer, and can't smuggle an unrelated
+  column through the same update.
+
+**Deliberately not built:** the UI-design-prompt / visual-mockup request
+raised mid-Phase-7 was explicitly deferred by the user in favor of
+finishing this phase first — still open, not abandoned.
+
+**Bugs this phase's real-Supabase verification pass caught:** none in
+the migration itself — `0016_approvals.sql` applied cleanly and every
+RLS/trigger check behaved as designed on the first run. The bug was in
+the *test*: `approval_thresholds_touch_updated_at` only fires `BEFORE
+UPDATE`, not `BEFORE INSERT`, so an insert's `updated_by` is enforced by
+the RLS policy's `with check` alone (the caller must submit their own
+id) rather than being normalized by a trigger the way an update's is.
+The first test draft assumed insert-time normalization too, sent a
+lying `updated_by` to check it got overwritten, and instead got a
+genuine RLS rejection — which aborted the rest of that test before it
+could seed the `supplier_payment`/`casual_labour` thresholds the next
+two tests depended on, so all three failed together. Fixed by sending
+the caller's real id on insert and adding a separate assertion — on an
+`UPDATE` — that the trigger does overwrite a lying `updated_by` there.
+
 ## Build order
 
 | Phase | Scope | Blueprint sections |

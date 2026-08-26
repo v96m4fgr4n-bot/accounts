@@ -389,3 +389,27 @@ Living document — revisit thresholds and approver count as the client formaliz
 | Stock adjustment | Owner counts and reviews personally | Two independent counters, owner approves |
 | Casual labour/payroll | Owner approves directly | Formal payroll sign-off once employees are registered |
 | Tax filing/registration step | Owner or consulting team, jointly | Delegated to a bookkeeper/finance role once one exists |
+
+> **Implementation note (added during Phase 7):** built as retrospective
+> flagging, not a blocking pre-approval gate — non-negotiable #1 already
+> requires every action to post its real journal immediately, and a
+> small-team client (this table's own "small team" column) has no one to
+> wait on anyway. A consultant sets an optional per-tenant,
+> per-decision-type, per-currency dollar threshold
+> (`approval_thresholds`); crossing it sets `needs_approval = true` on
+> the row at insert time, and a consultant clears it later from the
+> console — matching "owner reviews the daily cash sheet" as the
+> compensating control, just formalized into a queue instead of relying
+> on the cash sheet alone. Scoped to exactly the three rows above with a
+> real dollar-threshold shape: **Credit purchase**, **Supplier payment**,
+> **Casual labour**. **Cash purchase/restock** is deliberately excluded —
+> this table's own row already names the daily cash sheet as its
+> control, so a second threshold-flag would be redundant. **Tax
+> filing/registration step** already has its own status workflow
+> (`compliance_items`, Phase 5) — a dollar threshold doesn't apply to a
+> filing deadline. **Stock adjustment**'s control is "two independent
+> counters, owner approves" — the counting process itself, not a dollar
+> variance figure (and Phase 3 already deferred a reliable stock-variance
+> valuation) — so it's implemented as unconditional consultant sign-off
+> on every `stock_counts` row, not threshold-gated. See
+> `supabase/migrations/0016_approvals.sql`.
