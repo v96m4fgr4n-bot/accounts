@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { formatMoney, todayIsoDate } from '@/lib/format';
+import { todayIsoDate } from '@/lib/format';
 import { addAsset, runDepreciation, disposeAsset } from './actions';
+import { Money } from '@/components/CurrencyBadge';
 
 export default async function AssetsPage({
   searchParams,
@@ -29,10 +30,10 @@ export default async function AssetsPage({
 
   if (!tenantId) {
     return (
-      <main style={{ padding: '2rem', maxWidth: 640 }}>
+      <div className="container-narrow">
         <h1>Assets</h1>
         {tenants.length === 0 ? (
-          <p>No clients assigned to you yet.</p>
+          <p className="muted">No clients assigned to you yet.</p>
         ) : (
           <ul>
             {tenants.map((t) => (
@@ -45,7 +46,7 @@ export default async function AssetsPage({
         <p>
           <a href="/console">Back to console</a>
         </p>
-      </main>
+      </div>
     );
   }
 
@@ -60,86 +61,97 @@ export default async function AssetsPage({
   const today = todayIsoDate();
 
   return (
-    <main style={{ padding: '2rem', maxWidth: 800 }}>
-      <p>
-        <a href="/console/assets">All clients</a>
-      </p>
-      <h1>{tenant?.name ?? 'Assets'}</h1>
+    <>
+      <div className="topbar">
+        <div className="topbar-brand">
+          <div className="topbar-mark" />
+          <span>Console</span>
+        </div>
+        <span className="muted">/ Assets</span>
+      </div>
+      <div className="container">
+        <p>
+          <a href="/console/assets">All clients</a>
+        </p>
+        <h1>{tenant?.name ?? 'Assets'}</h1>
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Asset register</h2>
-        {!assets || assets.length === 0 ? (
-          <p>Nothing on the register yet.</p>
-        ) : (
-          <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: '1rem' }}>
-            <thead>
-              <tr>
-                {['Asset', 'Cost', 'Acquired', 'Life', 'Depreciated', 'Book value', 'Status', ''].map((h) => (
-                  <th key={h} style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '0.3rem' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {assets.map((a) => {
-                const bookValue = a.cost - a.accumulated_depreciation;
-                return (
-                  <tr key={a.id}>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>{a.name}</td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>{formatMoney(a.cost, a.currency)}</td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>{a.acquired_at}</td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>{a.useful_life_months}mo</td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>
-                      {formatMoney(a.accumulated_depreciation, a.currency)}
-                    </td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>{formatMoney(bookValue, a.currency)}</td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>
-                      {a.disposed_at ? `disposed ${a.disposed_at}` : 'active'}
-                    </td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>
-                      {!a.disposed_at && (
-                        <>
-                          <form action={runDepreciation} style={{ display: 'inline-block', marginRight: '0.5rem' }}>
-                            <input type="hidden" name="asset_id" value={a.id} />
-                            <input type="date" name="period_through" defaultValue={today} required style={{ padding: '0.2rem', width: '9rem' }} />
-                            <button type="submit" style={{ padding: '0.2rem 0.4rem' }}>
-                              Depreciate
-                            </button>
-                          </form>
-                          <form action={disposeAsset} style={{ display: 'inline-block' }}>
-                            <input type="hidden" name="asset_id" value={a.id} />
-                            <input type="date" name="disposed_at" defaultValue={today} required style={{ padding: '0.2rem', width: '9rem' }} />
-                            <input type="number" name="proceeds" step="0.01" min="0" placeholder="Proceeds" style={{ padding: '0.2rem', width: '6rem' }} />
-                            <button type="submit" style={{ padding: '0.2rem 0.4rem' }}>
-                              Dispose
-                            </button>
-                          </form>
-                        </>
-                      )}
-                    </td>
+        <section style={{ marginBottom: '2rem' }}>
+          <h2>Asset register</h2>
+          {!assets || assets.length === 0 ? (
+            <p className="muted">Nothing on the register yet.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table" style={{ marginBottom: '1rem' }}>
+                <thead>
+                  <tr>
+                    {['Asset', 'Cost', 'Acquired', 'Life', 'Depreciated', 'Book value', 'Status', ''].map((h) => (
+                      <th key={h}>{h}</th>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+                </thead>
+                <tbody>
+                  {assets.map((a) => {
+                    const bookValue = a.cost - a.accumulated_depreciation;
+                    return (
+                      <tr key={a.id}>
+                        <td>{a.name}</td>
+                        <td>
+                          <Money amount={a.cost} currency={a.currency} />
+                        </td>
+                        <td>{a.acquired_at}</td>
+                        <td>{a.useful_life_months}mo</td>
+                        <td>
+                          <Money amount={a.accumulated_depreciation} currency={a.currency} />
+                        </td>
+                        <td>
+                          <Money amount={bookValue} currency={a.currency} />
+                        </td>
+                        <td>{a.disposed_at ? `disposed ${a.disposed_at}` : <span className="muted">active</span>}</td>
+                        <td>
+                          {!a.disposed_at && (
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <form action={runDepreciation} style={{ display: 'flex', gap: '0.3rem' }}>
+                                <input type="hidden" name="asset_id" value={a.id} />
+                                <input type="date" name="period_through" defaultValue={today} required className="input" style={{ width: '9rem' }} />
+                                <button type="submit" className="btn btn-secondary btn-sm">
+                                  Depreciate
+                                </button>
+                              </form>
+                              <form action={disposeAsset} style={{ display: 'flex', gap: '0.3rem' }}>
+                                <input type="hidden" name="asset_id" value={a.id} />
+                                <input type="date" name="disposed_at" defaultValue={today} required className="input" style={{ width: '9rem' }} />
+                                <input type="number" name="proceeds" step="0.01" min="0" placeholder="Proceeds" className="input" style={{ width: '6rem' }} />
+                                <button type="submit" className="btn btn-secondary btn-sm">
+                                  Dispose
+                                </button>
+                              </form>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        <form action={addAsset}>
-          <input type="hidden" name="tenant_id" value={tenantId} />
-          <input type="text" name="name" placeholder="Asset name" required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <input type="number" name="cost" step="0.01" min="0" placeholder="Cost" required style={{ padding: '0.4rem', marginRight: '0.5rem', width: '7rem' }} />
-          <select name="currency" style={{ marginRight: '0.5rem' }}>
-            <option value="USD">USD</option>
-            <option value="ZWG">ZWG</option>
-          </select>
-          <input type="date" name="acquired_at" required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <input type="number" name="useful_life_months" min="1" placeholder="Useful life (months)" required style={{ padding: '0.4rem', marginRight: '0.5rem', width: '10rem' }} />
-          <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
-            Add to register
-          </button>
-        </form>
-      </section>
-    </main>
+          <form action={addAsset} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input type="hidden" name="tenant_id" value={tenantId} />
+            <input type="text" name="name" placeholder="Asset name" required className="input" style={{ width: 'auto' }} />
+            <input type="number" name="cost" step="0.01" min="0" placeholder="Cost" required className="input" style={{ width: '7rem' }} />
+            <select name="currency" className="input" style={{ width: 'auto' }}>
+              <option value="USD">USD</option>
+              <option value="ZWG">ZWG</option>
+            </select>
+            <input type="date" name="acquired_at" required className="input" style={{ width: 'auto' }} />
+            <input type="number" name="useful_life_months" min="1" placeholder="Useful life (months)" required className="input" style={{ width: '10rem' }} />
+            <button type="submit" className="btn btn-primary">
+              Add to register
+            </button>
+          </form>
+        </section>
+      </div>
+    </>
   );
 }

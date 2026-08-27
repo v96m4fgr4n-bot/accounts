@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { getPrimaryTenant } from '@/lib/tenant';
-import { formatMoney, todayIsoDate } from '@/lib/format';
+import { todayIsoDate } from '@/lib/format';
+import { Money } from '@/components/CurrencyBadge';
 import { recordCustomerPayment } from './actions';
 
 export default async function DebtorsPage({
@@ -18,8 +19,10 @@ export default async function DebtorsPage({
   const tenant = await getPrimaryTenant(supabase);
   if (!tenant) {
     return (
-      <main style={{ padding: '1.5rem', maxWidth: 480 }}>
-        <p>No business is linked to this login yet. Contact your consultant.</p>
+      <main className="container-narrow">
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>No business is linked to this login yet. Contact your consultant.</p>
+        </div>
       </main>
     );
   }
@@ -42,22 +45,33 @@ export default async function DebtorsPage({
     .maybeSingle();
 
   return (
-    <main style={{ padding: '1.5rem', maxWidth: 640 }}>
-      <p style={{ marginBottom: 0 }}>{tenant.name}</p>
+    <main className="container-narrow">
+      <p className="muted" style={{ marginBottom: 0 }}>{tenant.name}</p>
       <h1 style={{ marginTop: '0.25rem' }}>Who owes you</h1>
 
+      <nav className="nav-tabs" style={{ marginBottom: '1.5rem' }}>
+        <a href="/client/debtors?currency=USD" className={`nav-tab${currency === 'USD' ? ' active' : ''}`}>
+          USD
+        </a>
+        <a href="/client/debtors?currency=ZWG" className={`nav-tab${currency === 'ZWG' ? ' active' : ''}`}>
+          ZWG
+        </a>
+      </nav>
+
       {!balances || balances.length === 0 ? (
-        <p>Nobody currently owes you on account.</p>
+        <p className="muted">Nobody currently owes you on account.</p>
       ) : (
-        <ul>
+        <div style={{ display: 'grid', gap: '0.9rem' }}>
           {balances.map((b) => (
-            <li key={b.customer_id} style={{ marginBottom: '1rem' }}>
-              <strong>{b.name}</strong> — owes {formatMoney(b.balance_owed, currency)}
+            <div key={b.customer_id} className="card">
+              <strong>{b.name}</strong> — owes <Money amount={b.balance_owed} currency={currency} />
               {b.oldest_account_sale_at ? (
-                <span> (selling on account since {String(b.oldest_account_sale_at).slice(0, 10)})</span>
+                <div className="muted" style={{ fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                  selling on account since {String(b.oldest_account_sale_at).slice(0, 10)}
+                </div>
               ) : null}
               {cashDay && cashDay.status === 'open' ? (
-                <form action={recordCustomerPayment} style={{ marginTop: '0.5rem' }}>
+                <form action={recordCustomerPayment} style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-end' }}>
                   <input type="hidden" name="tenant_id" value={tenant.id} />
                   <input type="hidden" name="customer_id" value={b.customer_id} />
                   <input type="hidden" name="cash_day_id" value={cashDay.id} />
@@ -70,7 +84,7 @@ export default async function DebtorsPage({
                     max={b.balance_owed}
                     placeholder={`Amount paid (${currency})`}
                     required
-                    style={{ padding: '0.4rem', marginRight: '0.5rem' }}
+                    className="input input-inline"
                   />
                   {currency === 'ZWG' && (
                     <input
@@ -80,32 +94,23 @@ export default async function DebtorsPage({
                       min="0"
                       placeholder="Rate used today"
                       required
-                      style={{ padding: '0.4rem', marginRight: '0.5rem' }}
+                      className="input input-inline"
                     />
                   )}
-                  <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
+                  <button type="submit" className="btn btn-primary btn-sm">
                     Record payment
                   </button>
                 </form>
               ) : (
-                <p style={{ fontSize: '0.9em' }}>
+                <p className="muted" style={{ fontSize: '0.85rem', marginTop: '0.75rem', marginBottom: 0 }}>
                   <a href={`/client/day?currency=${currency}`}>Start today&apos;s {currency} cash day</a> to
                   record a payment.
                 </p>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
-
-      <nav style={{ marginTop: '1.5rem' }}>
-        <a href="/client/debtors?currency=USD" style={{ marginRight: '1rem', fontWeight: currency === 'USD' ? 'bold' : 'normal' }}>
-          USD
-        </a>
-        <a href="/client/debtors?currency=ZWG" style={{ fontWeight: currency === 'ZWG' ? 'bold' : 'normal' }}>
-          ZWG
-        </a>
-      </nav>
     </main>
   );
 }

@@ -1,7 +1,9 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { getPrimaryTenant } from '@/lib/tenant';
-import { formatMoney, todayIsoDate } from '@/lib/format';
+import { todayIsoDate } from '@/lib/format';
+import { Money } from '@/components/CurrencyBadge';
+import { StatusBadge } from '@/components/StatusBadge';
 import {
   openCashDay,
   logSale,
@@ -36,8 +38,10 @@ export default async function DayPage({
   const tenant = await getPrimaryTenant(supabase);
   if (!tenant) {
     return (
-      <main style={{ padding: '1.5rem', maxWidth: 480 }}>
-        <p>No business is linked to this login yet. Contact your consultant.</p>
+      <main className="container-narrow">
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>No business is linked to this login yet. Contact your consultant.</p>
+        </div>
       </main>
     );
   }
@@ -79,81 +83,83 @@ export default async function DayPage({
     : [null, null, null, null];
 
   return (
-    <main style={{ padding: '1.5rem', maxWidth: 640 }}>
-      <p style={{ marginBottom: 0 }}>{tenant.name}</p>
+    <main className="container-narrow">
+      <p className="muted" style={{ marginBottom: 0 }}>{tenant.name}</p>
       <h1 style={{ marginTop: '0.25rem' }}>Today — {tradeDate}</h1>
 
-      <nav style={{ marginBottom: '1.5rem' }}>
-        <a href="/client/day?currency=USD" style={{ marginRight: '1rem', fontWeight: currency === 'USD' ? 'bold' : 'normal' }}>
+      <nav className="nav-tabs" style={{ marginBottom: '1.5rem' }}>
+        <a href="/client/day?currency=USD" className={`nav-tab${currency === 'USD' ? ' active' : ''}`}>
           USD cash
         </a>
-        <a href="/client/day?currency=ZWG" style={{ fontWeight: currency === 'ZWG' ? 'bold' : 'normal' }}>
+        <a href="/client/day?currency=ZWG" className={`nav-tab${currency === 'ZWG' ? ' active' : ''}`}>
           ZWG cash
         </a>
       </nav>
 
       {!cashDay ? (
-        <section>
+        <section className="card">
           <h2>Start the day</h2>
-          <p>Count the {currency} float in the till before you open, then enter it here.</p>
+          <p className="muted">Count the {currency} float in the till before you open, then enter it here.</p>
           <form action={openCashDay}>
             <input type="hidden" name="tenant_id" value={tenant.id} />
             <input type="hidden" name="trade_date" value={tradeDate} />
             <input type="hidden" name="currency" value={currency} />
-            <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-              Opening float
+            <label className="field">
+              <span className="field-label">Opening float</span>
               <input
                 type="number"
                 name="opening_float"
                 step="0.01"
                 min="0"
                 required
-                style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+                className="input"
               />
             </label>
-            <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
               Start the day
             </button>
           </form>
         </section>
       ) : (
         <>
-          <section style={{ marginBottom: '2rem' }}>
-            <p>
-              Opening float: <strong>{formatMoney(cashDay.opening_float, currency)}</strong>
-              {cashDay.status === 'closed' ? ' — day closed' : ''}
+          <section className="card" style={{ marginBottom: '1.5rem' }}>
+            <p style={{ margin: 0 }}>
+              Opening float: <Money amount={cashDay.opening_float} currency={currency} />
+              {cashDay.status === 'closed' ? <span className="muted"> — day closed</span> : ''}
             </p>
           </section>
 
           {cashDay.status === 'open' && (
             <>
-              <section style={{ marginBottom: '1.5rem' }}>
+              <section className="card" style={{ marginBottom: '1.5rem' }}>
                 <h2>Log a sale</h2>
                 <form action={logSale}>
                   <HiddenFields tenantId={tenant.id} cashDayId={cashDay.id} currency={currency} />
                   <TextField name="description" label="What was sold" required />
                   <NumberField name="amount" label="Amount" required />
                   {currency === 'ZWG' && <RateField />}
-                  <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                    <select name="payment_method" defaultValue="cash">
+                  <label className="field">
+                    <span className="field-label">Payment</span>
+                    <select name="payment_method" defaultValue="cash" className="input">
                       <option value="cash">Paid cash</option>
                       <option value="account">On account (book credit)</option>
                     </select>
                   </label>
                   <TextField name="customer_name" label="Customer name (if on account)" />
-                  <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
                     Log sale
                   </button>
                 </form>
               </section>
 
-              <section style={{ marginBottom: '1.5rem' }}>
+              <section className="card" style={{ marginBottom: '1.5rem' }}>
                 <h2>Log stock bought</h2>
                 <form action={logPurchase}>
                   <HiddenFields tenantId={tenant.id} cashDayId={cashDay.id} currency={currency} />
                   <TextField name="description" label="What was bought" required />
-                  <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                    <select name="payment_method" defaultValue="cash">
+                  <label className="field">
+                    <span className="field-label">Payment</span>
+                    <select name="payment_method" defaultValue="cash" className="input">
                       <option value="cash">Paid cash</option>
                       <option value="credit">On credit (pay supplier later)</option>
                     </select>
@@ -162,19 +168,19 @@ export default async function DayPage({
                   <NumberField name="amount" label="Amount owed" required />
                   {currency === 'ZWG' && <RateField />}
                   <ReceiptCheckbox />
-                  <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
                     Log purchase
                   </button>
                 </form>
               </section>
 
-              <section style={{ marginBottom: '1.5rem' }}>
+              <section className="card" style={{ marginBottom: '1.5rem' }}>
                 <h2>Log an expense</h2>
                 <form action={logExpense}>
                   <HiddenFields tenantId={tenant.id} cashDayId={cashDay.id} currency={currency} />
-                  <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-                    Category
-                    <select name="category" required style={{ display: 'block', width: '100%', padding: '0.5rem' }}>
+                  <label className="field">
+                    <span className="field-label">Category</span>
+                    <select name="category" required className="input">
                       {EXPENSE_CATEGORIES.map((c) => (
                         <option key={c.value} value={c.value}>
                           {c.label}
@@ -186,7 +192,7 @@ export default async function DayPage({
                   <NumberField name="amount" label="Amount paid" required />
                   {currency === 'ZWG' && <RateField />}
                   <ReceiptCheckbox />
-                  <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+                  <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
                     Log expense
                   </button>
                 </form>
@@ -196,33 +202,33 @@ export default async function DayPage({
 
           <TodayList title="Sales" rows={sales?.data} render={(s) => (
             <span>
-              {formatMoney(s.amount, currency)} — {s.description}
+              <Money amount={s.amount} currency={currency} /> — {s.description}
               {s.payment_method === 'account' ? ` (on account: ${s.customer_name})` : ''}
             </span>
           )} />
 
           <TodayList title="Stock bought" rows={purchases?.data} render={(p) => (
             <span>
-              {formatMoney(p.amount, currency)} — {p.description}
+              <Money amount={p.amount} currency={currency} /> — {p.description}
               {p.supplier ? ` (from ${p.supplier})` : ''}
             </span>
           )} />
 
           <TodayList title="Expenses" rows={expenses?.data} render={(e) => (
             <span>
-              {formatMoney(e.amount, currency)} — {e.description}
+              <Money amount={e.amount} currency={currency} /> — {e.description}
             </span>
           )} />
 
           {cashDay.status === 'open' && (
-            <section style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
+            <section className="card" style={{ marginTop: '1.5rem' }}>
               <h2>Count the till and close the day</h2>
-              <p>Count all the {currency} cash in the till now, then enter what you counted.</p>
+              <p className="muted">Count all the {currency} cash in the till now, then enter what you counted.</p>
               <form action={closeCashDay}>
                 <input type="hidden" name="cash_day_id" value={cashDay.id} />
                 <NumberField name="closing_count" label="Cash counted" required />
                 <TextField name="variance_note" label="If it doesn't match, why (optional)" />
-                <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
                   Close the day
                 </button>
               </form>
@@ -230,18 +236,22 @@ export default async function DayPage({
           )}
 
           {cashDay.status === 'closed' && summary?.data && (
-            <section style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
+            <section className="card" style={{ marginTop: '1.5rem' }}>
               <h2>Day closed</h2>
-              <p>Cash counted: {formatMoney(summary.data.closing_count, currency)}</p>
-              <p>Expected: {formatMoney(summary.data.expected_cash, currency)}</p>
+              <p>Cash counted: <Money amount={summary.data.closing_count} currency={currency} /></p>
+              <p>Expected: <Money amount={summary.data.expected_cash} currency={currency} /></p>
               <p>
-                <strong>
-                  {summary.data.variance === 0
-                    ? 'Matched.'
-                    : summary.data.variance > 0
-                      ? `Over by ${formatMoney(summary.data.variance, currency)}.`
-                      : `Short by ${formatMoney(Math.abs(summary.data.variance), currency)}.`}
-                </strong>
+                {summary.data.variance === 0 ? (
+                  <StatusBadge severity="ok">Matched</StatusBadge>
+                ) : summary.data.variance > 0 ? (
+                  <StatusBadge severity="pending">
+                    Over by <Money amount={summary.data.variance} currency={currency} />
+                  </StatusBadge>
+                ) : (
+                  <StatusBadge severity="pending">
+                    Short by <Money amount={Math.abs(summary.data.variance)} currency={currency} />
+                  </StatusBadge>
+                )}
               </p>
             </section>
           )}
@@ -279,13 +289,13 @@ function TextField({
   required?: boolean;
 }) {
   return (
-    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-      {label}
+    <label className="field">
+      <span className="field-label">{label}</span>
       <input
         type="text"
         name={name}
         required={required}
-        style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+        className="input"
       />
     </label>
   );
@@ -301,15 +311,15 @@ function NumberField({
   required?: boolean;
 }) {
   return (
-    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-      {label}
+    <label className="field">
+      <span className="field-label">{label}</span>
       <input
         type="number"
         name={name}
         step="0.01"
         min="0"
         required={required}
-        style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+        className="input"
       />
     </label>
   );
@@ -317,15 +327,15 @@ function NumberField({
 
 function RateField() {
   return (
-    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-      Rate used today (ZWG per USD)
+    <label className="field">
+      <span className="field-label">Rate used today (ZWG per USD)</span>
       <input
         type="number"
         name="exchange_rate_to_usd"
         step="0.0001"
         min="0"
         required
-        style={{ display: 'block', width: '100%', padding: '0.5rem' }}
+        className="input"
       />
     </label>
   );
@@ -333,7 +343,7 @@ function RateField() {
 
 function ReceiptCheckbox() {
   return (
-    <label style={{ display: 'block', marginBottom: '0.5rem' }}>
+    <label className="field" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
       <input type="checkbox" name="has_receipt" /> Got a receipt
     </label>
   );
@@ -350,11 +360,11 @@ function TodayList<T extends { id: string }>({
 }) {
   if (!rows || rows.length === 0) return null;
   return (
-    <section style={{ marginBottom: '1.5rem' }}>
-      <h3>{title} today</h3>
-      <ul>
+    <section className="card" style={{ marginBottom: '1.5rem' }}>
+      <h3 style={{ marginTop: 0 }}>{title} today</h3>
+      <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
         {rows.map((row) => (
-          <li key={row.id}>{render(row)}</li>
+          <li key={row.id} style={{ marginBottom: '0.4rem' }}>{render(row)}</li>
         ))}
       </ul>
     </section>

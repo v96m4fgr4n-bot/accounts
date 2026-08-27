@@ -22,33 +22,40 @@ export default function LoginPage() {
     else setSent(true);
   }
 
-  if (sent) {
-    return (
-      <main style={{ padding: '2rem', maxWidth: 480 }}>
-        <p>Check your email for a sign-in link.</p>
-      </main>
-    );
-  }
-
   return (
-    <main style={{ padding: '2rem', maxWidth: 480 }}>
-      <h1>Sign in</h1>
-      <form onSubmit={submit}>
-        <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-          Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ display: 'block', width: '100%', padding: '0.5rem' }}
-          />
-        </label>
-        <button type="submit" style={{ padding: '0.5rem 1rem' }}>
-          Send sign-in link
-        </button>
-        {err ? <p style={{ color: 'crimson' }}>{err}</p> : null}
-      </form>
-    </main>
+    <div className="theme-client" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <main className="container-narrow" style={{ width: '100%' }}>
+        <div className="card">
+          {sent ? (
+            <>
+              <h1 style={{ fontSize: '1.4rem', margin: '0 0 0.5rem' }}>Check your email</h1>
+              <p className="muted" style={{ margin: 0 }}>We&apos;ve sent a sign-in link to {email}.</p>
+            </>
+          ) : (
+            <>
+              <h1 style={{ fontSize: '1.4rem', margin: '0 0 1.25rem' }}>Sign in</h1>
+              <form onSubmit={submit}>
+                <label className="field">
+                  <span className="field-label">Email</span>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input"
+                  />
+                </label>
+                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
+                  Send sign-in link
+                </button>
+                {err ? (
+                  <p style={{ color: 'oklch(45% 0.18 25)', marginTop: '0.75rem', marginBottom: 0 }}>{err}</p>
+                ) : null}
+              </form>
+            </>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }

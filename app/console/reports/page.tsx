@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { formatMoney, todayIsoDate, startOfCurrentMonthIsoDate } from '@/lib/format';
 import { closePeriod } from './actions';
+import { CurrencyBadge } from '@/components/CurrencyBadge';
 
 type ReportRow = {
   account_code: string;
@@ -41,10 +42,10 @@ export default async function ReportsPage({
 
   if (!tenantId) {
     return (
-      <main style={{ padding: '2rem', maxWidth: 640 }}>
+      <div className="container-narrow">
         <h1>Reports</h1>
         {tenants.length === 0 ? (
-          <p>No clients assigned to you yet.</p>
+          <p className="muted">No clients assigned to you yet.</p>
         ) : (
           <ul>
             {tenants.map((t) => (
@@ -57,7 +58,7 @@ export default async function ReportsPage({
         <p>
           <a href="/console">Back to console</a>
         </p>
-      </main>
+      </div>
     );
   }
 
@@ -79,98 +80,117 @@ export default async function ReportsPage({
   const closedThrough = closes?.[0]?.closed_through as string | undefined;
 
   return (
-    <main style={{ padding: '2rem', maxWidth: 800 }}>
-      <p>
-        <a href="/console/reports">All clients</a>
-      </p>
-      <h1>{tenant?.name ?? 'Reports'}</h1>
+    <>
+      <div className="topbar">
+        <div className="topbar-brand">
+          <div className="topbar-mark" />
+          <span>Console</span>
+        </div>
+        <span className="muted">/ Reports</span>
+      </div>
+      <div className="container">
+        <p>
+          <a href="/console/reports">All clients</a>
+        </p>
+        <h1>{tenant?.name ?? 'Reports'}</h1>
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Period close</h2>
-        {closedThrough ? (
-          <p>Closed through {closedThrough}. Postings on or before this date need a consultant.</p>
-        ) : (
-          <p>No period closed yet — everything is open.</p>
-        )}
-        <form action={closePeriod}>
-          <input type="hidden" name="tenant_id" value={tenantId} />
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Close through
-            <input
-              type="date"
-              name="closed_through"
-              required
-              min={closedThrough ? new Date(new Date(closedThrough).getTime() + 86400000).toISOString().slice(0, 10) : undefined}
-              style={{ display: 'block', padding: '0.4rem' }}
-            />
-          </label>
-          <input
-            type="text"
-            name="note"
-            placeholder="Note (optional)"
-            style={{ padding: '0.4rem', marginRight: '0.5rem' }}
+        <section className="card" style={{ marginBottom: '2rem' }}>
+          <h2>Period close</h2>
+          {closedThrough ? (
+            <p>Closed through {closedThrough}. Postings on or before this date need a consultant.</p>
+          ) : (
+            <p className="muted">No period closed yet — everything is open.</p>
+          )}
+          <form action={closePeriod} style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <input type="hidden" name="tenant_id" value={tenantId} />
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span className="field-label">Close through</span>
+              <input
+                type="date"
+                name="closed_through"
+                required
+                min={closedThrough ? new Date(new Date(closedThrough).getTime() + 86400000).toISOString().slice(0, 10) : undefined}
+                className="input"
+              />
+            </label>
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span className="field-label">Note</span>
+              <input type="text" name="note" placeholder="Note (optional)" className="input" />
+            </label>
+            <button type="submit" className="btn btn-primary">
+              Close period
+            </button>
+          </form>
+        </section>
+
+        <section style={{ marginBottom: '2rem' }}>
+          <h2>Trial balance</h2>
+          <form method="get" style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+            <input type="hidden" name="tenant" value={tenantId} />
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span className="field-label">As of</span>
+              <input type="date" name="asOf" defaultValue={asOf} className="input" />
+            </label>
+            <button type="submit" className="btn btn-secondary">
+              Update
+            </button>
+          </form>
+          <ReportTable
+            rows={trialBalance as TrialBalanceRow[] | null}
+            columns={['Account', 'Currency', 'Debit', 'Credit']}
+            render={(r: TrialBalanceRow) => [
+              r.account_name,
+              <CurrencyBadge key="currency" currency={r.currency} />,
+              <span key="debit" className="money">{formatMoney(r.debit_balance, r.currency)}</span>,
+              <span key="credit" className="money">{formatMoney(r.credit_balance, r.currency)}</span>,
+            ]}
           />
-          <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
-            Close period
-          </button>
-        </form>
-      </section>
+        </section>
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Trial balance</h2>
-        <form method="get" style={{ marginBottom: '0.75rem' }}>
-          <input type="hidden" name="tenant" value={tenantId} />
-          <label>
-            As of{' '}
-            <input type="date" name="asOf" defaultValue={asOf} style={{ padding: '0.3rem' }} />
-          </label>{' '}
-          <button type="submit" style={{ padding: '0.3rem 0.6rem' }}>
-            Update
-          </button>
-        </form>
-        <ReportTable
-          rows={trialBalance as TrialBalanceRow[] | null}
-          columns={['Account', 'Currency', 'Debit', 'Credit']}
-          render={(r: TrialBalanceRow) => [
-            r.account_name,
-            r.currency,
-            formatMoney(r.debit_balance, r.currency),
-            formatMoney(r.credit_balance, r.currency),
-          ]}
-        />
-      </section>
+        <section style={{ marginBottom: '2rem' }}>
+          <h2>Income statement</h2>
+          <form method="get" style={{ marginBottom: '0.75rem', display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
+            <input type="hidden" name="tenant" value={tenantId} />
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span className="field-label">From</span>
+              <input type="date" name="from" defaultValue={from} className="input" />
+            </label>
+            <label className="field" style={{ marginBottom: 0 }}>
+              <span className="field-label">To</span>
+              <input type="date" name="to" defaultValue={to} className="input" />
+            </label>
+            <button type="submit" className="btn btn-secondary">
+              Update
+            </button>
+          </form>
+          <ReportTable
+            rows={incomeStatement as AmountRow[] | null}
+            columns={['Account', 'Type', 'Currency', 'Amount']}
+            render={(r: AmountRow) => [
+              r.account_name,
+              r.account_type,
+              <CurrencyBadge key="currency" currency={r.currency} />,
+              <span key="amount" className="money">{formatMoney(r.amount, r.currency)}</span>,
+            ]}
+          />
+        </section>
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Income statement</h2>
-        <form method="get" style={{ marginBottom: '0.75rem' }}>
-          <input type="hidden" name="tenant" value={tenantId} />
-          <label>
-            From <input type="date" name="from" defaultValue={from} style={{ padding: '0.3rem' }} />
-          </label>{' '}
-          <label>
-            To <input type="date" name="to" defaultValue={to} style={{ padding: '0.3rem' }} />
-          </label>{' '}
-          <button type="submit" style={{ padding: '0.3rem 0.6rem' }}>
-            Update
-          </button>
-        </form>
-        <ReportTable
-          rows={incomeStatement as AmountRow[] | null}
-          columns={['Account', 'Type', 'Currency', 'Amount']}
-          render={(r: AmountRow) => [r.account_name, r.account_type, r.currency, formatMoney(r.amount, r.currency)]}
-        />
-      </section>
-
-      <section>
-        <h2>Balance sheet</h2>
-        <p style={{ fontSize: '0.9em' }}>As of {asOf} (uses the same date as the trial balance above).</p>
-        <ReportTable
-          rows={balanceSheet as AmountRow[] | null}
-          columns={['Account', 'Type', 'Currency', 'Amount']}
-          render={(r: AmountRow) => [r.account_name, r.account_type, r.currency, formatMoney(r.amount, r.currency)]}
-        />
-      </section>
-    </main>
+        <section>
+          <h2>Balance sheet</h2>
+          <p className="muted" style={{ fontSize: '0.9em' }}>As of {asOf} (uses the same date as the trial balance above).</p>
+          <ReportTable
+            rows={balanceSheet as AmountRow[] | null}
+            columns={['Account', 'Type', 'Currency', 'Amount']}
+            render={(r: AmountRow) => [
+              r.account_name,
+              r.account_type,
+              <CurrencyBadge key="currency" currency={r.currency} />,
+              <span key="amount" className="money">{formatMoney(r.amount, r.currency)}</span>,
+            ]}
+          />
+        </section>
+      </div>
+    </>
   );
 }
 
@@ -181,31 +201,29 @@ function ReportTable<T>({
 }: {
   rows: T[] | null;
   columns: string[];
-  render: (row: T) => (string | number)[];
+  render: (row: T) => React.ReactNode[];
 }) {
-  if (!rows || rows.length === 0) return <p>No activity.</p>;
+  if (!rows || rows.length === 0) return <p className="muted">No activity.</p>;
   return (
-    <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-      <thead>
-        <tr>
-          {columns.map((c) => (
-            <th key={c} style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '0.3rem' }}>
-              {c}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={i}>
-            {render(row).map((cell, j) => (
-              <td key={j} style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>
-                {cell}
-              </td>
+    <div style={{ overflowX: 'auto' }}>
+      <table className="data-table">
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c}>{c}</th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {render(row).map((cell, j) => (
+                <td key={j}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

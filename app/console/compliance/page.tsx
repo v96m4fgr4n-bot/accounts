@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
-import { formatMoney, todayIsoDate } from '@/lib/format';
+import { todayIsoDate } from '@/lib/format';
 import {
   addComplianceItem,
   updateComplianceStatus,
@@ -8,6 +8,7 @@ import {
   updateTenantCompliance,
   logPenalty,
 } from './actions';
+import { StatusBadge } from '@/components/StatusBadge';
 
 const OBLIGATION_TYPES = [
   { value: 'presumptive_tax', label: 'Presumptive tax' },
@@ -48,10 +49,10 @@ export default async function CompliancePage({
 
   if (!tenantId) {
     return (
-      <main style={{ padding: '2rem', maxWidth: 640 }}>
+      <div className="container-narrow">
         <h1>Compliance</h1>
         {tenants.length === 0 ? (
-          <p>No clients assigned to you yet.</p>
+          <p className="muted">No clients assigned to you yet.</p>
         ) : (
           <ul>
             {tenants.map((t) => (
@@ -64,7 +65,7 @@ export default async function CompliancePage({
         <p>
           <a href="/console">Back to console</a>
         </p>
-      </main>
+      </div>
     );
   }
 
@@ -98,167 +99,181 @@ export default async function CompliancePage({
   const today = todayIsoDate();
 
   return (
-    <main style={{ padding: '2rem', maxWidth: 800 }}>
-      <p>
-        <a href="/console/compliance">All clients</a>
-      </p>
-      <h1>{tenant?.name ?? 'Compliance'}</h1>
+    <>
+      <div className="topbar">
+        <div className="topbar-brand">
+          <div className="topbar-mark" />
+          <span>Console</span>
+        </div>
+        <span className="muted">/ Compliance</span>
+      </div>
+      <div className="container">
+        <p>
+          <a href="/console/compliance">All clients</a>
+        </p>
+        <h1>{tenant?.name ?? 'Compliance'}</h1>
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Formalization</h2>
-        <form action={updateTenantCompliance}>
-          <input type="hidden" name="tenant_id" value={tenantId} />
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Stage
-            <select name="formalization_stage" defaultValue={tenant?.formalization_stage}>
-              <option value="unregistered">Unregistered</option>
-              <option value="presumptive">Presumptive tax</option>
-              <option value="registered">Formally registered</option>
-            </select>
-          </label>
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            <input type="checkbox" name="vat_registered" defaultChecked={tenant?.vat_registered} /> VAT registered
-          </label>
-          <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
-            Save
-          </button>
-        </form>
-      </section>
+        <section className="card" style={{ marginBottom: '2rem' }}>
+          <h2>Formalization</h2>
+          <form action={updateTenantCompliance}>
+            <input type="hidden" name="tenant_id" value={tenantId} />
+            <div className="field">
+              <span className="field-label">Stage</span>
+              <select name="formalization_stage" defaultValue={tenant?.formalization_stage} className="input">
+                <option value="unregistered">Unregistered</option>
+                <option value="presumptive">Presumptive tax</option>
+                <option value="registered">Formally registered</option>
+              </select>
+            </div>
+            <label style={{ display: 'block', marginBottom: '1rem' }}>
+              <input type="checkbox" name="vat_registered" defaultChecked={tenant?.vat_registered} /> VAT registered
+            </label>
+            <button type="submit" className="btn btn-primary">
+              Save
+            </button>
+          </form>
+        </section>
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Compliance calendar</h2>
-        {!items || items.length === 0 ? (
-          <p>Nothing tracked yet.</p>
-        ) : (
-          <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: '1rem' }}>
-            <thead>
-              <tr>
-                {['Due', 'Type', 'Period', 'Status', 'Note'].map((h) => (
-                  <th key={h} style={{ textAlign: 'left', borderBottom: '1px solid #ccc', padding: '0.3rem' }}>
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => {
-                const overdue = item.due_date < today && item.status !== 'confirmed' && item.status !== 'filed';
-                return (
-                  <tr key={item.id} style={overdue ? { color: 'crimson' } : undefined}>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>
-                      {item.due_date}
-                      {overdue ? ' (overdue)' : ''}
-                    </td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>
-                      {OBLIGATION_TYPES.find((o) => o.value === item.obligation_type)?.label ?? item.obligation_type}
-                    </td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>{item.period_label ?? '—'}</td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>
-                      <form action={updateComplianceStatus} style={{ display: 'inline' }}>
-                        <input type="hidden" name="item_id" value={item.id} />
-                        <select name="status" defaultValue={item.status} style={{ padding: '0.2rem' }}>
-                          {STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {s.replace('_', ' ')}
-                            </option>
-                          ))}
-                        </select>
-                        <button type="submit" style={{ padding: '0.2rem 0.5rem', marginLeft: '0.3rem' }}>
-                          Update
-                        </button>
-                      </form>
-                    </td>
-                    <td style={{ padding: '0.3rem', borderBottom: '1px solid #eee' }}>{item.note ?? ''}</td>
+        <section style={{ marginBottom: '2rem' }}>
+          <h2>Compliance calendar</h2>
+          {!items || items.length === 0 ? (
+            <p className="muted">Nothing tracked yet.</p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="data-table" style={{ marginBottom: '1rem' }}>
+                <thead>
+                  <tr>
+                    {['Due', 'Type', 'Period', 'Status', 'Note'].map((h) => (
+                      <th key={h}>{h}</th>
+                    ))}
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
+                </thead>
+                <tbody>
+                  {items.map((item) => {
+                    const overdue = item.due_date < today && item.status !== 'confirmed' && item.status !== 'filed';
+                    const severity = overdue ? 'urgent' : item.status === 'filed' || item.status === 'confirmed' ? 'ok' : 'pending';
+                    return (
+                      <tr key={item.id}>
+                        <td>
+                          {item.due_date}
+                          {overdue && (
+                            <>
+                              {' '}
+                              <StatusBadge severity="urgent">overdue</StatusBadge>
+                            </>
+                          )}
+                        </td>
+                        <td>{OBLIGATION_TYPES.find((o) => o.value === item.obligation_type)?.label ?? item.obligation_type}</td>
+                        <td>{item.period_label ?? '—'}</td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <StatusBadge severity={severity}>{item.status.replace('_', ' ')}</StatusBadge>
+                            <form action={updateComplianceStatus} style={{ display: 'flex', gap: '0.3rem' }}>
+                              <input type="hidden" name="item_id" value={item.id} />
+                              <select name="status" defaultValue={item.status} className="input" style={{ width: 'auto' }}>
+                                {STATUSES.map((s) => (
+                                  <option key={s} value={s}>
+                                    {s.replace('_', ' ')}
+                                  </option>
+                                ))}
+                              </select>
+                              <button type="submit" className="btn btn-secondary btn-sm">
+                                Update
+                              </button>
+                            </form>
+                          </div>
+                        </td>
+                        <td>{item.note ?? ''}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-        <form action={addComplianceItem}>
-          <input type="hidden" name="tenant_id" value={tenantId} />
-          <label style={{ marginRight: '0.5rem' }}>
-            <select name="obligation_type" required>
+          <form action={addComplianceItem} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input type="hidden" name="tenant_id" value={tenantId} />
+            <select name="obligation_type" required className="input" style={{ width: 'auto' }}>
               {OBLIGATION_TYPES.map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
               ))}
             </select>
-          </label>
-          <input type="text" name="period_label" placeholder="Period (e.g. 2026-04)" style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <input type="date" name="due_date" required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <input type="text" name="note" placeholder="Note (optional)" style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
-            Add
-          </button>
-        </form>
-      </section>
-
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Tax settings</h2>
-        <p style={{ fontSize: '0.9em' }}>
-          Shared across every client — confirm current figures with ZIMRA / a registered tax practitioner before
-          relying on them.
-        </p>
-        {latestSettings.size === 0 ? (
-          <p>Nothing recorded yet.</p>
-        ) : (
-          <ul>
-            {[...latestSettings.entries()].map(([key, s]) => (
-              <li key={key}>
-                <strong>{key}</strong>: {s.value} (effective {s.effective_from}
-                {s.note ? ` — ${s.note}` : ''})
-              </li>
-            ))}
-          </ul>
-        )}
-        <form action={addTaxSetting}>
-          <input type="text" name="setting_key" placeholder="setting key (e.g. vat_threshold_usd)" required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <input type="number" name="value" step="0.0001" required style={{ padding: '0.4rem', marginRight: '0.5rem', width: '8rem' }} />
-          <input type="date" name="effective_from" required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <input type="text" name="note" placeholder="Note (optional)" style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-          <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
-            Record
-          </button>
-        </form>
-      </section>
-
-      <section>
-        <h2>Log a penalty or interest charge</h2>
-        <p style={{ fontSize: '0.9em' }}>Tracked separately from ordinary expenses so the cause gets fixed.</p>
-        {cashDay && cashDay.status === 'open' ? (
-          <form action={logPenalty}>
-            <input type="hidden" name="tenant_id" value={tenantId} />
-            <input type="hidden" name="cash_day_id" value={cashDay.id} />
-            <input type="hidden" name="currency" value={currency} />
-            <input type="text" name="description" placeholder="What was it for" required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-            <input type="number" name="amount" step="0.01" min="0" placeholder={`Amount (${currency})`} required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-            {currency === 'ZWG' && (
-              <input type="number" name="exchange_rate_to_usd" step="0.0001" min="0" placeholder="Rate used today" required style={{ padding: '0.4rem', marginRight: '0.5rem' }} />
-            )}
-            <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
-              Log
+            <input type="text" name="period_label" placeholder="Period (e.g. 2026-04)" className="input" style={{ width: 'auto' }} />
+            <input type="date" name="due_date" required className="input" style={{ width: 'auto' }} />
+            <input type="text" name="note" placeholder="Note (optional)" className="input" style={{ width: 'auto' }} />
+            <button type="submit" className="btn btn-primary">
+              Add
             </button>
           </form>
-        ) : (
-          <p style={{ fontSize: '0.9em' }}>
-            <a href={`/console/compliance?tenant=${tenantId}&currency=${currency}`}>
-              Today&apos;s {currency} cash day isn&apos;t open on the client side yet
-            </a>{' '}
-            — a penalty logs against the day&apos;s till like any other cash-out.
+        </section>
+
+        <section style={{ marginBottom: '2rem' }}>
+          <h2>Tax settings</h2>
+          <p className="muted" style={{ fontSize: '0.9em' }}>
+            Shared across every client — confirm current figures with ZIMRA / a registered tax practitioner before
+            relying on them.
           </p>
-        )}
-        <nav style={{ marginTop: '0.75rem' }}>
-          <a href={`/console/compliance?tenant=${tenantId}&currency=USD`} style={{ marginRight: '1rem', fontWeight: currency === 'USD' ? 'bold' : 'normal' }}>
-            USD
-          </a>
-          <a href={`/console/compliance?tenant=${tenantId}&currency=ZWG`} style={{ fontWeight: currency === 'ZWG' ? 'bold' : 'normal' }}>
-            ZWG
-          </a>
-        </nav>
-      </section>
-    </main>
+          {latestSettings.size === 0 ? (
+            <p className="muted">Nothing recorded yet.</p>
+          ) : (
+            <ul>
+              {[...latestSettings.entries()].map(([key, s]) => (
+                <li key={key}>
+                  <strong>{key}</strong>: {s.value} (effective {s.effective_from}
+                  {s.note ? ` — ${s.note}` : ''})
+                </li>
+              ))}
+            </ul>
+          )}
+          <form action={addTaxSetting} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+            <input type="text" name="setting_key" placeholder="setting key (e.g. vat_threshold_usd)" required className="input" style={{ width: 'auto' }} />
+            <input type="number" name="value" step="0.0001" required className="input" style={{ width: '8rem' }} />
+            <input type="date" name="effective_from" required className="input" style={{ width: 'auto' }} />
+            <input type="text" name="note" placeholder="Note (optional)" className="input" style={{ width: 'auto' }} />
+            <button type="submit" className="btn btn-primary">
+              Record
+            </button>
+          </form>
+        </section>
+
+        <section>
+          <h2>Log a penalty or interest charge</h2>
+          <p className="muted" style={{ fontSize: '0.9em' }}>Tracked separately from ordinary expenses so the cause gets fixed.</p>
+          {cashDay && cashDay.status === 'open' ? (
+            <form action={logPenalty} style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+              <input type="hidden" name="tenant_id" value={tenantId} />
+              <input type="hidden" name="cash_day_id" value={cashDay.id} />
+              <input type="hidden" name="currency" value={currency} />
+              <input type="text" name="description" placeholder="What was it for" required className="input" style={{ width: 'auto' }} />
+              <input type="number" name="amount" step="0.01" min="0" placeholder={`Amount (${currency})`} required className="input" style={{ width: 'auto' }} />
+              {currency === 'ZWG' && (
+                <input type="number" name="exchange_rate_to_usd" step="0.0001" min="0" placeholder="Rate used today" required className="input" style={{ width: 'auto' }} />
+              )}
+              <button type="submit" className="btn btn-primary">
+                Log
+              </button>
+            </form>
+          ) : (
+            <p className="muted" style={{ fontSize: '0.9em' }}>
+              <a href={`/console/compliance?tenant=${tenantId}&currency=${currency}`}>
+                Today&apos;s {currency} cash day isn&apos;t open on the client side yet
+              </a>{' '}
+              — a penalty logs against the day&apos;s till like any other cash-out.
+            </p>
+          )}
+          <nav className="nav-tabs" style={{ marginTop: '0.75rem' }}>
+            <a href={`/console/compliance?tenant=${tenantId}&currency=USD`} className={`nav-tab ${currency === 'USD' ? 'active' : ''}`}>
+              USD
+            </a>
+            <a href={`/console/compliance?tenant=${tenantId}&currency=ZWG`} className={`nav-tab ${currency === 'ZWG' ? 'active' : ''}`}>
+              ZWG
+            </a>
+          </nav>
+        </section>
+      </div>
+    </>
   );
 }

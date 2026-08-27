@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabase } from '@/lib/supabase/server';
 import { getPrimaryTenant } from '@/lib/tenant';
+import { StatusBadge } from '@/components/StatusBadge';
 import { addInventoryItem, logStockCount } from './actions';
 
 export default async function InventoryPage() {
@@ -13,8 +14,10 @@ export default async function InventoryPage() {
   const tenant = await getPrimaryTenant(supabase);
   if (!tenant) {
     return (
-      <main style={{ padding: '1.5rem', maxWidth: 480 }}>
-        <p>No business is linked to this login yet. Contact your consultant.</p>
+      <main className="container-narrow">
+        <div className="card">
+          <p className="muted" style={{ margin: 0 }}>No business is linked to this login yet. Contact your consultant.</p>
+        </div>
       </main>
     );
   }
@@ -38,12 +41,12 @@ export default async function InventoryPage() {
   }
 
   return (
-    <main style={{ padding: '1.5rem', maxWidth: 640 }}>
-      <p style={{ marginBottom: 0 }}>{tenant.name}</p>
+    <main className="container-narrow">
+      <p className="muted" style={{ marginBottom: 0 }}>{tenant.name}</p>
       <h1 style={{ marginTop: '0.25rem' }}>Stock</h1>
 
       {items && items.length > 0 ? (
-        <ul>
+        <div style={{ display: 'grid', gap: '0.9rem', marginBottom: '1.5rem' }}>
           {items.map((item) => {
             const latest = latestCountByItem.get(item.id);
             const low =
@@ -51,20 +54,25 @@ export default async function InventoryPage() {
               latest != null &&
               latest.counted_quantity <= item.reorder_point;
             return (
-              <li key={item.id} style={{ marginBottom: '1.25rem' }}>
+              <div key={item.id} className="card">
                 <strong>{item.name}</strong>
-                {item.unit_of_measure ? ` (${item.unit_of_measure})` : ''}
-                {latest ? (
-                  <span>
-                    {' '}
-                    — last counted {latest.counted_quantity} on{' '}
-                    {latest.counted_at.slice(0, 10)}
-                    {low ? ' — reorder soon' : ''}
-                  </span>
-                ) : (
-                  <span> — not counted yet</span>
-                )}
-                <form action={logStockCount} style={{ marginTop: '0.4rem' }}>
+                {item.unit_of_measure ? <span className="muted"> ({item.unit_of_measure})</span> : ''}
+                <div style={{ marginTop: '0.3rem' }}>
+                  {latest ? (
+                    <span className="muted">
+                      last counted {latest.counted_quantity} on{' '}
+                      {latest.counted_at.slice(0, 10)}
+                    </span>
+                  ) : (
+                    <span className="muted">not counted yet</span>
+                  )}
+                  {low ? (
+                    <span style={{ marginLeft: '0.5rem' }}>
+                      <StatusBadge severity="urgent">Reorder soon</StatusBadge>
+                    </span>
+                  ) : null}
+                </div>
+                <form action={logStockCount} style={{ marginTop: '0.75rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', alignItems: 'flex-end' }}>
                   <input type="hidden" name="tenant_id" value={tenant.id} />
                   <input type="hidden" name="inventory_item_id" value={item.id} />
                   <input
@@ -74,43 +82,44 @@ export default async function InventoryPage() {
                     min="0"
                     placeholder="Count now"
                     required
-                    style={{ padding: '0.4rem', marginRight: '0.5rem', width: '8rem' }}
+                    className="input input-inline"
+                    style={{ width: '8rem' }}
                   />
                   <input
                     type="text"
                     name="note"
                     placeholder="Note (optional)"
-                    style={{ padding: '0.4rem', marginRight: '0.5rem' }}
+                    className="input input-inline"
                   />
-                  <button type="submit" style={{ padding: '0.4rem 0.75rem' }}>
+                  <button type="submit" className="btn btn-primary btn-sm">
                     Log count
                   </button>
                 </form>
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       ) : (
-        <p>No stock items yet.</p>
+        <p className="muted">No stock items yet.</p>
       )}
 
-      <section style={{ marginTop: '2rem', borderTop: '1px solid #ccc', paddingTop: '1rem' }}>
+      <section className="card">
         <h2>Add a stock item</h2>
         <form action={addInventoryItem}>
           <input type="hidden" name="tenant_id" value={tenant.id} />
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Name
-            <input type="text" name="name" required style={{ display: 'block', width: '100%', padding: '0.5rem' }} />
+          <label className="field">
+            <span className="field-label">Name</span>
+            <input type="text" name="name" required className="input" />
           </label>
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Unit (e.g. each, box, kg)
-            <input type="text" name="unit_of_measure" style={{ display: 'block', width: '100%', padding: '0.5rem' }} />
+          <label className="field">
+            <span className="field-label">Unit (e.g. each, box, kg)</span>
+            <input type="text" name="unit_of_measure" className="input" />
           </label>
-          <label style={{ display: 'block', marginBottom: '0.5rem' }}>
-            Reorder when stock falls to
-            <input type="number" name="reorder_point" step="0.01" min="0" style={{ display: 'block', width: '100%', padding: '0.5rem' }} />
+          <label className="field">
+            <span className="field-label">Reorder when stock falls to</span>
+            <input type="number" name="reorder_point" step="0.01" min="0" className="input" />
           </label>
-          <button type="submit" style={{ padding: '0.5rem 1rem' }}>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
             Add item
           </button>
         </form>

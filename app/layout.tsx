@@ -1,3 +1,5 @@
+import './globals.css';
+
 export const metadata = {
   title: 'Client Accounting',
 };
@@ -9,7 +11,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body style={{ margin: 0, background: 'oklch(98% 0.012 75)' }}>{children}</body>
     </html>
   );
 }

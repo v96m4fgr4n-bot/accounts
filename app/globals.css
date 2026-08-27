@@ -1,0 +1,351 @@
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+}
+
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------------
+   Client app — the shop counter. Warm, light, plain language.
+   --------------------------------------------------------------------- */
+.theme-client {
+  --bg: oklch(98% 0.012 75);
+  --surface: oklch(100% 0 0);
+  --surface-2: oklch(95% 0.015 75);
+  --text: oklch(22% 0.02 50);
+  --text-muted: oklch(48% 0.02 50);
+  --border: oklch(90% 0.015 70);
+  --accent: oklch(58% 0.16 35);
+  --accent-text: oklch(45% 0.13 35);
+  --accent-soft: oklch(94% 0.05 40);
+
+  --status-ok-bg: oklch(93% 0.05 150);
+  --status-ok-text: oklch(32% 0.09 150);
+  --status-pending-bg: oklch(94% 0.06 80);
+  --status-pending-text: oklch(38% 0.11 80);
+  --status-urgent-bg: oklch(93% 0.06 25);
+  --status-urgent-text: oklch(40% 0.14 25);
+
+  --currency-usd-bg: oklch(94% 0.02 250);
+  --currency-usd-text: oklch(35% 0.06 250);
+  --currency-zwg-bg: oklch(94% 0.03 90);
+  --currency-zwg-text: oklch(38% 0.09 90);
+
+  --radius-card: 20px;
+  --radius-control: 14px;
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+}
+
+.theme-client h1,
+.theme-client h2,
+.theme-client .heading {
+  font-family: 'Newsreader', Georgia, serif;
+  font-weight: 500;
+}
+
+/* ---------------------------------------------------------------------
+   Console — the control room. Dark, dense, exact.
+   --------------------------------------------------------------------- */
+.theme-console {
+  --bg: oklch(20% 0.012 255);
+  --surface: oklch(23% 0.013 255);
+  --surface-2: oklch(25% 0.014 255);
+  --text: oklch(94% 0.006 255);
+  --text-muted: oklch(65% 0.01 255);
+  --border: oklch(34% 0.014 255);
+  --accent: oklch(72% 0.13 200);
+  --accent-on: oklch(15% 0.02 200);
+  --accent-soft: oklch(28% 0.03 200);
+
+  --status-ok-bg: oklch(30% 0.06 150);
+  --status-ok-text: oklch(85% 0.08 150);
+  --status-pending-bg: oklch(32% 0.07 80);
+  --status-pending-text: oklch(85% 0.09 80);
+  --status-urgent-bg: oklch(32% 0.08 25);
+  --status-urgent-text: oklch(85% 0.12 25);
+
+  --currency-usd-bg: oklch(30% 0.03 250);
+  --currency-usd-text: oklch(85% 0.03 250);
+  --currency-zwg-bg: oklch(32% 0.04 90);
+  --currency-zwg-text: oklch(85% 0.05 90);
+
+  --radius-card: 10px;
+  --radius-control: 6px;
+
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', -apple-system, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+}
+
+.theme-console a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.theme-console a:hover {
+  text-decoration: underline;
+}
+
+/* ---------------------------------------------------------------------
+   Shared component classes — same vocabulary, themed by variables.
+   --------------------------------------------------------------------- */
+
+.mono {
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+.container-narrow {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+.theme-client .container,
+.theme-client .container-narrow {
+  max-width: 480px;
+  padding: 1.25rem 1.25rem 2.5rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.25rem 1.375rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: var(--radius-control);
+  padding: 0.7rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  background: none;
+}
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+.theme-console .btn-primary {
+  color: var(--accent-on);
+}
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+.btn-outline {
+  background: transparent;
+  border-color: currentColor;
+}
+.btn-sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+  border-radius: calc(var(--radius-control) - 4px);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.field {
+  display: block;
+  margin-bottom: 1rem;
+}
+.field-label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+.input,
+select.input,
+textarea.input {
+  display: block;
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  padding: 0.65rem 0.85rem;
+}
+.theme-console .input {
+  background: var(--surface-2);
+}
+.input-inline {
+  display: inline-block;
+  width: auto;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.badge-usd {
+  background: var(--currency-usd-bg);
+  color: var(--currency-usd-text);
+}
+.badge-zwg {
+  background: var(--currency-zwg-bg);
+  color: var(--currency-zwg-text);
+}
+.badge-ok {
+  background: var(--status-ok-bg);
+  color: var(--status-ok-text);
+  font-family: inherit;
+}
+.badge-pending {
+  background: var(--status-pending-bg);
+  color: var(--status-pending-text);
+  font-family: inherit;
+}
+.badge-urgent {
+  background: var(--status-urgent-bg);
+  color: var(--status-urgent-text);
+  font-family: inherit;
+}
+
+.money {
+  font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  font-weight: 500;
+}
+
+table.data-table {
+  font-size: 0.9rem;
+}
+.theme-console table.data-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+table.data-table th {
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+.theme-console table.data-table th {
+  background: var(--surface-2);
+}
+table.data-table td {
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.tile {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 1.1rem 1.2rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.1rem 1.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.topbar-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.theme-console .topbar {
+  background: var(--surface);
+}
+
+.nav-tabs {
+  display: inline-flex;
+  gap: 0.3rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  padding: 0.25rem;
+  border-radius: calc(var(--radius-control) - 2px);
+}
+.nav-tab {
+  padding: 0.45rem 0.9rem;
+  border-radius: calc(var(--radius-control) - 6px);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+.nav-tab.active {
+  background: var(--surface);
+  color: var(--text);
+}
+.theme-console .nav-tab.active {
+  background: var(--accent);
+  color: var(--accent-on);
+}
